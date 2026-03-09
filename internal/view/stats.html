@@ -1,0 +1,199 @@
+{{define "title"}}{{t "app.title"}} - {{.Title}}{{end}}
+
+{{define "content"}}
+<article>
+    <header>
+        <h1>📈 {{t "stats.title"}}</h1>
+        <p>{{t "stats.description"}}</p>
+    </header>
+
+    <!-- Time Range Selector -->
+    <section>
+        <h2>{{t "stats.time_range"}}</h2>
+        <form method="GET" action="/logs/stats">
+            <div class="grid">
+                <div>
+                    <label for="time_range">{{t "stats.select_time_range"}}</label>
+                    <select name="time_range" id="time_range" onchange="this.form.submit()">
+                        <option value="1h" {{if eq .TimeRange "1h"}}selected{{end}}>{{t "logs.time_range.1h"}}</option>
+                        <option value="6h" {{if eq .TimeRange "6h"}}selected{{end}}>{{t "logs.time_range.6h"}}</option>
+                        <option value="24h" {{if eq .TimeRange "24h"}}selected{{end}}>{{t "logs.time_range.24h"}}</option>
+                        <option value="7d" {{if eq .TimeRange "7d"}}selected{{end}}>{{t "logs.time_range.7d"}}</option>
+                        <option value="30d" {{if eq .TimeRange "30d"}}selected{{end}}>{{t "logs.time_range.30d"}}</option>
+                    </select>
+                </div>
+                <div>
+                    <p><small>{{t "stats.from_to" (dict "StartTime" .StartTime "EndTime" .EndTime)}}</small></p>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Overall Statistics -->
+    <section>
+        <h2>{{t "stats.overall_statistics"}}</h2>
+        <div class="grid">
+            <div style="text-align: center;">
+                <h3>{{t "stats.total_requests"}}</h3>
+                <p style="font-size: 2em; margin: 0;"><strong>{{.Stats.TotalRequests}}</strong></p>
+            </div>
+            <div style="text-align: center;">
+                <h3>{{t "stats.success_rate"}}</h3>
+                <p style="font-size: 2em; margin: 0; color: #28a745;"><strong>{{printf "%.1f" .SuccessRate}}%</strong></p>
+            </div>
+            <div style="text-align: center;">
+                <h3>{{t "stats.avg_duration"}}</h3>
+                <p style="font-size: 2em; margin: 0;"><strong>{{printf "%.0f" .Stats.AvgDurationMs}}ms</strong></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detailed Metrics -->
+    <section>
+        <h2>{{t "stats.detailed_metrics"}}</h2>
+        <div class="grid">
+            <div>
+                <h3>{{t "stats.request_status"}}</h3>
+                <table>
+                    <tr>
+                        <td>{{t "stats.successful_requests"}}</td>
+                        <td style="color: #28a745;"><strong>{{.Stats.SuccessfulRequests}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>{{t "stats.failed_requests"}}</td>
+                        <td style="color: #dc3545;"><strong>{{.Stats.FailedRequests}}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>{{t "stats.total_requests"}}</td>
+                        <td><strong>{{.Stats.TotalRequests}}</strong></td>
+                    </tr>
+                </table>
+            </div>
+            <div>
+                <h3>{{t "stats.response_times"}}</h3>
+                <table>
+                    <tr>
+                        <td>{{t "stats.average_duration"}}</td>
+                        <td><strong>{{printf "%.0f" .Stats.AvgDurationMs}}ms</strong></td>
+                    </tr>
+                    <tr>
+                        <td>{{t "stats.minimum_duration"}}</td>
+                        <td><strong>{{.Stats.MinDurationMs}}ms</strong></td>
+                    </tr>
+                    <tr>
+                        <td>{{t "stats.maximum_duration"}}</td>
+                        <td><strong>{{.Stats.MaxDurationMs}}ms</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Endpoint Performance -->
+    <section>
+        <h2>{{t "stats.endpoint_performance"}}</h2>
+        {{if .EndpointStats}}
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{t "logs.table.endpoint"}}</th>
+                        <th>{{t "stats.total_requests"}}</th>
+                        <th>{{t "logs.successful"}}</th>
+                        <th>{{t "logs.failed"}}</th>
+                        <th>{{t "stats.success_rate"}}</th>
+                        <th>{{t "stats.avg_duration"}}</th>
+                        <th>{{t "stats.performance"}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .EndpointStats}}
+                    <tr>
+                        <td><code>{{.APIEndpoint}}</code></td>
+                        <td>{{.TotalRequests}}</td>
+                        <td style="color: #28a745;">{{.SuccessfulRequests}}</td>
+                        <td style="color: #dc3545;">{{.FailedRequests}}</td>
+                        <td>
+                            {{if gt .TotalRequests 0}}
+                                {{if gt .SuccessRate 95.0}}
+                                    <span style="color: #28a745;">{{printf "%.1f%%" .SuccessRate}}</span>
+                                {{else if gt .SuccessRate 80.0}}
+                                    <span style="color: #ffc107;">{{printf "%.1f%%" .SuccessRate}}</span>
+                                {{else}}
+                                    <span style="color: #dc3545;">{{printf "%.1f%%" .SuccessRate}}</span>
+                                {{end}}
+                            {{else}}
+                                0%
+                            {{end}}
+                        </td>
+                        <td>{{printf "%.0f" .AvgDurationMs}}ms</td>
+                        <td>
+                            {{if lt .AvgDurationMs 500.0}}
+                                <span style="color: #28a745;">🟢 {{t "stats.fast"}}</span>
+                            {{else if lt .AvgDurationMs 1000.0}}
+                                <span style="color: #ffc107;">🟡 {{t "stats.medium"}}</span>
+                            {{else}}
+                                <span style="color: #dc3545;">🔴 {{t "stats.slow"}}</span>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <p>{{t "stats.no_endpoint_stats"}}</p>
+        {{end}}
+    </section>
+
+    <!-- Performance Insights -->
+    <section>
+        <h2>{{t "stats.performance_insights"}}</h2>
+        <div class="grid">
+            <div>
+                <h3>{{t "stats.health_status"}}</h3>
+                {{if gt .SuccessRate 95.0}}
+                    <p style="color: #28a745;">🟢 <strong>{{t "stats.excellent"}}</strong> - {{t "stats.excellent_desc"}}</p>
+                {{else if gt .SuccessRate 80.0}}
+                    <p style="color: #ffc107;">🟡 <strong>{{t "stats.good"}}</strong> - {{t "stats.good_desc"}}</p>
+                {{else}}
+                    <p style="color: #dc3545;">🔴 <strong>{{t "stats.poor"}}</strong> - {{t "stats.poor_desc"}}</p>
+                {{end}}
+            </div>
+            <div>
+                <h3>{{t "stats.response_time_label"}}</h3>
+                {{if lt .Stats.AvgDurationMs 500.0}}
+                    <p style="color: #28a745;">🟢 <strong>{{t "stats.fast"}}</strong> - {{t "stats.response_excellent"}}</p>
+                {{else if lt .Stats.AvgDurationMs 1000.0}}
+                    <p style="color: #ffc107;">🟡 <strong>{{t "stats.medium"}}</strong> - {{t "stats.response_acceptable"}}</p>
+                {{else}}
+                    <p style="color: #dc3545;">🔴 <strong>{{t "stats.slow"}}</strong> - {{t "stats.response_improvement"}}</p>
+                {{end}}
+            </div>
+        </div>
+    </section>
+
+    <!-- Actions -->
+    <section>
+        <div class="grid">
+            <div>
+                <a href="/logs" role="button" class="secondary">{{t "stats.view_detailed_logs"}}</a>
+            </div>
+            <div>
+                <button onclick="refreshStats()" class="secondary">{{t "stats.refresh"}}</button>
+            </div>
+        </div>
+    </section>
+</article>
+
+<script>
+function refreshStats() {
+    window.location.reload();
+}
+
+// Auto-refresh every 60 seconds
+setInterval(refreshStats, 60000);
+</script>
+{{end}}
+
+{{template "layout.html" .}}

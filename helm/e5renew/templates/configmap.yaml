@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "e5renew.fullname" . }}-config
+  labels:
+    {{- include "e5renew.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    database:
+      engine: "{{ .Values.config.database.engine }}"
+      port: {{ .Values.config.database.port }}
+      # Values will be provided via environment variables
+      dsn: ""
+
+    azureAD:
+      tenant: "{{ .Values.config.azuread.tenant }}"
+      clientID: "{{ .Values.config.azuread.clientId }}"
+      clientSecret: "{{ .Values.config.azuread.clientSecret }}"
+      redirectURL: "{{ .Values.config.azuread.redirectUri }}"
+
+    userToken:
+      tenant: "{{ .Values.config.userToken.tenant }}"
+      clientId: "{{ .Values.config.userToken.clientId }}"
+      clientSecret: "{{ .Values.config.userToken.clientSecret }}"
+      redirectUri: "{{ .Values.config.userToken.redirectUri }}"
+
+    server:
+      port: {{ .Values.service.targetPort }}
+      host: "{{ .Values.config.server.host }}"
+
+    otel:
+      serviceName: "{{ .Values.config.otel.serviceName }}"
+      serviceVersion: "{{ .Values.config.otel.serviceVersion }}"
+      environment: "{{ .Values.config.otel.environment }}"
+      enableTracing: {{ .Values.config.otel.enableTracing }}
+      enableMetrics: {{ .Values.config.otel.enableMetrics }}
+      enableStdout: {{ .Values.config.otel.enableStdout }}
+      {{- if .Values.config.otel.otlpEndpoint }}
+      otlpEndpoint: "{{ .Values.config.otel.otlpEndpoint }}"
+      {{- end }}
+
+    # Encryption key will be provided via environment variable
+    encryptionKey: ""
+
+    debug: {{ .Values.config.debug }}
+
+  azuread-redirect-uri: "{{ .Values.config.azuread.redirectUri }}"
+  usertoken-redirect-uri: "{{ .Values.config.userToken.redirectUri }}"

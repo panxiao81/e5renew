@@ -1,0 +1,466 @@
+[
+  {
+    "id": "app.title",
+    "translation": "E5Renew"
+  },
+  {
+    "id": "nav.home",
+    "translation": "Home"
+  },
+  {
+    "id": "nav.user",
+    "translation": "User"
+  },
+  {
+    "id": "nav.logs",
+    "translation": "API Logs"
+  },
+  {
+    "id": "nav.login",
+    "translation": "Login"
+  },
+  {
+    "id": "nav.logout",
+    "translation": "Logout"
+  },
+  {
+    "id": "home.welcome",
+    "translation": "Welcome to E5 Application!"
+  },
+  {
+    "id": "home.description",
+    "translation": "Automatically maintain your Microsoft Office 365 E5 subscription by calling Microsoft Graph API endpoints."
+  },
+  {
+    "id": "user.personal_mail_access",
+    "translation": "📧 Personal Mail Access"
+  },
+  {
+    "id": "user.authorized",
+    "translation": "✅ Authorized"
+  },
+  {
+    "id": "user.not_authorized",
+    "translation": "❌ Not Authorized"
+  },
+  {
+    "id": "user.token_expires",
+    "translation": "Token expires: {{.Expiry}}"
+  },
+  {
+    "id": "user.trigger_mail_btn",
+    "translation": "🚀 Trigger Mail API Call"
+  },
+  {
+    "id": "user.revoke_access",
+    "translation": "Revoke Access"
+  },
+  {
+    "id": "user.authorize_mail",
+    "translation": "🔑 Authorize Personal Mail Access"
+  },
+  {
+    "id": "user.authorize_description",
+    "translation": "Click the button below to authorize personal mail access for background processing."
+  },
+  {
+    "id": "user.mail_note",
+    "translation": "Personal mail access allows the application to read your emails in the background to maintain your Office 365 E5 subscription activity."
+  },
+  {
+    "id": "user.api_messages",
+    "translation": "API Messages"
+  },
+  {
+    "id": "user.no_messages",
+    "translation": "No messages available."
+  },
+  {
+    "id": "user.processing",
+    "translation": "⏳ Processing..."
+  },
+  {
+    "id": "user.triggering_mail",
+    "translation": "🔄 Triggering mail API call..."
+  },
+  {
+    "id": "user.success",
+    "translation": "✅ Success!"
+  },
+  {
+    "id": "user.error",
+    "translation": "❌ Error"
+  },
+  {
+    "id": "user.network_error",
+    "translation": "❌ Network Error"
+  },
+  {
+    "id": "user.network_error_message",
+    "translation": "Failed to trigger mail API call: {{.Error}}"
+  },
+  {
+    "id": "user.processing_time",
+    "translation": "Processing time: {{.Time}} ({{.Ms}}ms)"
+  },
+  {
+    "id": "user.timestamp",
+    "translation": "Timestamp: {{.Timestamp}}"
+  },
+  {
+    "id": "user.debug_mode",
+    "translation": "⚠️ Debug Mode - Token Information"
+  },
+  {
+    "id": "user.access_token",
+    "translation": "Access Token:"
+  },
+  {
+    "id": "user.refresh_token",
+    "translation": "Refresh Token:"
+  },
+  {
+    "id": "user.user_id",
+    "translation": "User ID: {{.UserID}}"
+  },
+  {
+    "id": "footer.copyright",
+    "translation": "© 2025 E5Renew"
+  },
+  {
+    "id": "footer.powered_by",
+    "translation": "Powered by Golang"
+  },
+  {
+    "id": "footer.designed_by",
+    "translation": "Designed by"
+  },
+  {
+    "id": "language.english",
+    "translation": "English"
+  },
+  {
+    "id": "language.chinese",
+    "translation": "中文"
+  },
+  {
+    "id": "language.switch",
+    "translation": "Language"
+  },
+  {
+    "id": "logs.title",
+    "translation": "API Logs"
+  },
+  {
+    "id": "logs.description",
+    "translation": "Monitor and analyze Microsoft Graph API calls"
+  },
+  {
+    "id": "logs.statistics_summary",
+    "translation": "Statistics Summary"
+  },
+  {
+    "id": "logs.total_requests",
+    "translation": "Total Requests"
+  },
+  {
+    "id": "logs.successful",
+    "translation": "Successful"
+  },
+  {
+    "id": "logs.failed",
+    "translation": "Failed"
+  },
+  {
+    "id": "logs.avg_duration",
+    "translation": "Avg Duration"
+  },
+  {
+    "id": "logs.filters",
+    "translation": "Filters"
+  },
+  {
+    "id": "logs.time_range",
+    "translation": "Time Range:"
+  },
+  {
+    "id": "logs.time_range.1h",
+    "translation": "Last Hour"
+  },
+  {
+    "id": "logs.time_range.6h",
+    "translation": "Last 6 Hours"
+  },
+  {
+    "id": "logs.time_range.24h",
+    "translation": "Last 24 Hours"
+  },
+  {
+    "id": "logs.time_range.7d",
+    "translation": "Last 7 Days"
+  },
+  {
+    "id": "logs.time_range.30d",
+    "translation": "Last 30 Days"
+  },
+  {
+    "id": "logs.job_type",
+    "translation": "Job Type:"
+  },
+  {
+    "id": "logs.job_type.all",
+    "translation": "All Types"
+  },
+  {
+    "id": "logs.job_type.user_mail",
+    "translation": "User Mail"
+  },
+  {
+    "id": "logs.job_type.client_credentials",
+    "translation": "Client Credentials"
+  },
+  {
+    "id": "logs.user_id",
+    "translation": "User ID:"
+  },
+  {
+    "id": "logs.user_id_placeholder",
+    "translation": "Enter user ID..."
+  },
+  {
+    "id": "logs.apply_filters",
+    "translation": "Apply Filters"
+  },
+  {
+    "id": "logs.api_call_logs",
+    "translation": "API Call Logs"
+  },
+  {
+    "id": "logs.table.time",
+    "translation": "Time"
+  },
+  {
+    "id": "logs.table.endpoint",
+    "translation": "Endpoint"
+  },
+  {
+    "id": "logs.table.method",
+    "translation": "Method"
+  },
+  {
+    "id": "logs.table.status",
+    "translation": "Status"
+  },
+  {
+    "id": "logs.table.duration",
+    "translation": "Duration"
+  },
+  {
+    "id": "logs.table.user",
+    "translation": "User"
+  },
+  {
+    "id": "logs.table.job_type",
+    "translation": "Job Type"
+  },
+  {
+    "id": "logs.table.error",
+    "translation": "Error"
+  },
+  {
+    "id": "logs.no_logs_found",
+    "translation": "No logs found for the selected filters."
+  },
+  {
+    "id": "logs.endpoint_statistics",
+    "translation": "Endpoint Statistics"
+  },
+  {
+    "id": "logs.stats.total_requests",
+    "translation": "Total Requests"
+  },
+  {
+    "id": "logs.stats.successful",
+    "translation": "Successful"
+  },
+  {
+    "id": "logs.stats.failed",
+    "translation": "Failed"
+  },
+  {
+    "id": "logs.stats.success_rate",
+    "translation": "Success Rate"
+  },
+  {
+    "id": "logs.stats.avg_duration",
+    "translation": "Avg Duration"
+  },
+  {
+    "id": "logs.previous",
+    "translation": "Previous"
+  },
+  {
+    "id": "logs.page",
+    "translation": "Page {{.Page}}"
+  },
+  {
+    "id": "logs.next",
+    "translation": "Next"
+  },
+  {
+    "id": "logs.view_detailed_stats",
+    "translation": "📈 View Detailed Statistics"
+  },
+  {
+    "id": "logs.refresh",
+    "translation": "🔄 Refresh"
+  },
+  {
+    "id": "stats.title",
+    "translation": "API Statistics"
+  },
+  {
+    "id": "stats.description",
+    "translation": "Detailed analysis of Microsoft Graph API usage"
+  },
+  {
+    "id": "stats.time_range",
+    "translation": "Time Range"
+  },
+  {
+    "id": "stats.select_time_range",
+    "translation": "Select Time Range:"
+  },
+  {
+    "id": "stats.from_to",
+    "translation": "From: {{.StartTime}} to {{.EndTime}}"
+  },
+  {
+    "id": "stats.overall_statistics",
+    "translation": "Overall Statistics"
+  },
+  {
+    "id": "stats.total_requests",
+    "translation": "Total Requests"
+  },
+  {
+    "id": "stats.success_rate",
+    "translation": "Success Rate"
+  },
+  {
+    "id": "stats.avg_duration",
+    "translation": "Avg Duration"
+  },
+  {
+    "id": "stats.detailed_metrics",
+    "translation": "Detailed Metrics"
+  },
+  {
+    "id": "stats.request_status",
+    "translation": "Request Status"
+  },
+  {
+    "id": "stats.successful_requests",
+    "translation": "Successful Requests"
+  },
+  {
+    "id": "stats.failed_requests",
+    "translation": "Failed Requests"
+  },
+  {
+    "id": "stats.response_times",
+    "translation": "Response Times"
+  },
+  {
+    "id": "stats.average_duration",
+    "translation": "Average Duration"
+  },
+  {
+    "id": "stats.minimum_duration",
+    "translation": "Minimum Duration"
+  },
+  {
+    "id": "stats.maximum_duration",
+    "translation": "Maximum Duration"
+  },
+  {
+    "id": "stats.endpoint_performance",
+    "translation": "Endpoint Performance"
+  },
+  {
+    "id": "stats.performance",
+    "translation": "Performance"
+  },
+  {
+    "id": "stats.fast",
+    "translation": "Fast"
+  },
+  {
+    "id": "stats.medium",
+    "translation": "Medium"
+  },
+  {
+    "id": "stats.slow",
+    "translation": "Slow"
+  },
+  {
+    "id": "stats.no_endpoint_stats",
+    "translation": "No endpoint statistics available for the selected time range."
+  },
+  {
+    "id": "stats.performance_insights",
+    "translation": "Performance Insights"
+  },
+  {
+    "id": "stats.health_status",
+    "translation": "Health Status"
+  },
+  {
+    "id": "stats.excellent",
+    "translation": "Excellent"
+  },
+  {
+    "id": "stats.excellent_desc",
+    "translation": "System is performing very well"
+  },
+  {
+    "id": "stats.good",
+    "translation": "Good"
+  },
+  {
+    "id": "stats.good_desc",
+    "translation": "System is performing adequately"
+  },
+  {
+    "id": "stats.poor",
+    "translation": "Poor"
+  },
+  {
+    "id": "stats.poor_desc",
+    "translation": "System needs attention"
+  },
+  {
+    "id": "stats.response_time_label",
+    "translation": "Response Time"
+  },
+  {
+    "id": "stats.response_excellent",
+    "translation": "Response times are excellent"
+  },
+  {
+    "id": "stats.response_acceptable",
+    "translation": "Response times are acceptable"
+  },
+  {
+    "id": "stats.response_improvement",
+    "translation": "Response times need improvement"
+  },
+  {
+    "id": "stats.view_detailed_logs",
+    "translation": "📋 View Detailed Logs"
+  },
+  {
+    "id": "stats.refresh",
+    "translation": "🔄 Refresh"
+  }
+]

@@ -1,0 +1,176 @@
+# Default values for e5renew
+replicaCount: 1
+
+image:
+  repository: e5renew
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: e5renew.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: e5renew-tls
+  #    hosts:
+  #      - e5renew.local
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+migrations:
+  enabled: true
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+
+# Application configuration
+config:
+  # Database configuration
+  database:
+    # Supported engines: mysql | postgres
+    engine: "mysql"
+    port: 3306
+    # MySQL format: user:password@tcp(host:port)/database?parseTime=true
+    # Postgres format: postgres://user:password@host:port/database?sslmode=disable
+    dsn: "user:password@tcp(mysql:3306)/e5renew?parseTime=true"
+
+  # Azure AD configuration
+  azuread:
+    tenant: ""
+    clientId: ""
+    clientSecret: ""
+    redirectUri: "http://localhost:8080/oauth2/callback"
+
+  # User token configuration for personal mail access
+  userToken:
+    tenant: ""
+    clientId: ""
+    clientSecret: ""
+    redirectUri: "http://localhost:8080/oauth2/user-token-callback"
+
+  # Server configuration
+  server:
+    port: 8080
+    host: "0.0.0.0"
+
+  # OpenTelemetry configuration
+  otel:
+    serviceName: "e5renew"
+    serviceVersion: "v0.1.0"
+    environment: "production"
+    enableTracing: true
+    enableMetrics: true
+    enableStdout: false
+    otlpEndpoint: ""
+
+  # Encryption key for token storage (32 characters)
+  encryptionKey: ""
+
+  # Debug mode
+  debug: false
+
+# External dependencies
+mysql:
+  enabled: true
+  auth:
+    rootPassword: "rootpassword"
+    database: "e5renew"
+    username: "e5renew"
+    password: "e5renew"
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+postgres:
+  enabled: false
+  auth:
+    postgresPassword: "postgrespassword"
+    database: "e5renew"
+    username: "e5renew"
+    password: "e5renew"
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+postgresql:
+  enabled: false
+  auth:
+    database: "e5renew"
+    username: "e5renew"
+    password: "e5renew"
+    postgresPassword: "postgrespassword"
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+# Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Persistence for logs (optional)
+persistence:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  storageClass: ""

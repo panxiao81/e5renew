@@ -1,0 +1,20 @@
+CREATE TABLE api_logs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id VARCHAR(40) NULL,
+    api_endpoint VARCHAR(255) NOT NULL,
+    http_method VARCHAR(10) NOT NULL,
+    http_status_code INT NOT NULL,
+    request_time TIMESTAMP NOT NULL,
+    response_time TIMESTAMP NOT NULL,
+    duration_ms INT NOT NULL,
+    request_size INT DEFAULT 0,
+    response_size INT DEFAULT 0,
+    error_message TEXT NULL,
+    job_type VARCHAR(50) NOT NULL,
+    success BOOLEAN NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_request_time (request_time),
+    INDEX idx_api_endpoint (api_endpoint),
+    INDEX idx_job_type (job_type)
+);

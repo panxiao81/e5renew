@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+        />
+        <title>{{block "title" .}}{{end}}</title>
+    </head>
+
+    <body>
+        <header class="container">
+            <nav>
+                <ul>
+                    <li><a href="/" class="brand">{{t "app.title"}}</a></li>
+                </ul>
+                <ul>
+                    <li><a href="/">{{t "nav.home"}}</a></li>
+                    <li><a href="/user">{{t "nav.user"}}</a></li>
+                    {{if .User}}
+                    <li><a href="/logs">{{t "nav.logs"}}</a></li>
+                    <li><a href="/logout">{{t "nav.logout"}}</a></li>
+                    {{else}}
+                    <li><a href="/login">{{t "nav.login"}}</a></li>
+                    {{end}}
+                    <li>
+                        <details class="dropdown">
+                            <summary role="button" class="secondary">
+                                {{t "language.switch"}}
+                            </summary>
+                            <ul>
+                                <li>
+                                    <a href="?lang=en"
+                                        >{{t "language.english"}}</a
+                                    >
+                                </li>
+                                <li>
+                                    <a href="?lang=zh"
+                                        >{{t "language.chinese"}}</a
+                                    >
+                                </li>
+                            </ul>
+                        </details>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+        <main class="container">{{block "content" .}}{{end}}</main>
+        <footer class="container">
+            <small>{{t "footer.copyright"}}</small>
+            <small>{{t "footer.powered_by"}}</small>
+            <small
+                >{{t "footer.designed_by"}}
+                <a href="https://picocss.com/" target="_blank"
+                    >Pico CSS</a
+                ></small
+            >
+        </footer>
+        <script src="/statics/main.js"></script>
+    </body>
+</html>

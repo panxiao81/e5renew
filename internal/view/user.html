@@ -1,0 +1,161 @@
+{{define "title"}}{{t "app.title"}} - {{.Title}}{{end}} {{define "content"}}
+<article>
+    <header>
+        <h1>{{.Claims.Name}}</h1>
+        <p>{{.Claims.PreferredUsername}}</p>
+        <small>{{t "user.user_id" (dict "UserID" .User.Subject)}}</small>
+    </header>
+
+    {{if .Debug}}
+    <details>
+        <summary role="button" class="secondary">
+            {{t "user.debug_mode"}}
+        </summary>
+        <div>
+            <p>
+                <strong>{{t "user.access_token"}}</strong>
+                {{.Token.AccessToken}}
+            </p>
+            <p>
+                <strong>{{t "user.refresh_token"}}</strong>
+                {{.Token.RefreshToken}}
+            </p>
+        </div>
+    </details>
+    {{end}}
+
+    <section>
+        <h2>{{t "user.personal_mail_access"}}</h2>
+        {{if .HasUserToken}}
+        <div data-theme="light">
+            <p><strong>{{t "user.authorized"}}</strong></p>
+            {{if .UserTokenExpiry}}
+            <p>
+                <small
+                    >Token expires:
+                    <span class="timestamp"
+                        >{{.UserTokenExpiry.Format "2006-01-02 15:04:05"}}</span
+                    ></small
+                >
+            </p>
+            {{end}}
+            <div
+                style="
+                    display: flex;
+                    gap: 1rem;
+                    align-items: center;
+                    margin-top: 1rem;
+                "
+            >
+                <button type="button" id="triggerMailBtn" class="primary">
+                    {{t "user.trigger_mail_btn"}}
+                </button>
+                <form
+                    method="POST"
+                    action="/user/revoke-token"
+                    style="margin: 0"
+                >
+                    <button type="submit" class="secondary" data-theme="dark">
+                        {{t "user.revoke_access"}}
+                    </button>
+                </form>
+            </div>
+            <div
+                id="triggerResult"
+                style="margin-top: 1rem; display: none"
+            ></div>
+        </div>
+        {{else}}
+        <div>
+            <p><strong>{{t "user.not_authorized"}}</strong></p>
+            <p>{{t "user.authorize_description"}}</p>
+            <a href="/user/authorize-token" role="button">
+                {{t "user.authorize_mail"}}
+            </a>
+        </div>
+        {{end}}
+        <p>
+            <small> <strong>Note:</strong> {{t "user.mail_note"}} </small>
+        </p>
+    </section>
+
+    <section>
+        <h3>{{t "user.api_messages"}}</h3>
+        {{if .Messages}}
+        <ul>
+            {{range $key, $value := .Messages}}
+            <li><strong>{{$key}}</strong>: {{$value}}</li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p><small>{{t "user.no_messages"}}</small></p>
+        {{end}}
+    </section>
+</article>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const triggerBtn = document.getElementById("triggerMailBtn");
+        const resultDiv = document.getElementById("triggerResult");
+
+        if (triggerBtn) {
+            triggerBtn.addEventListener("click", function () {
+                // Disable button and show loading state
+                triggerBtn.disabled = true;
+                triggerBtn.innerHTML = "⏳ Processing...";
+
+                // Show loading message
+                resultDiv.innerHTML =
+                    "<p><em>🔄 Triggering mail API call...</em></p>";
+                resultDiv.style.display = "block";
+
+                // Make API call
+                fetch("/user/trigger-mail", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.success) {
+                            resultDiv.innerHTML = `
+                        <div data-theme="light" style="background-color: #d4edda; color: #155724; padding: 1rem; border-radius: 0.5rem;">
+                            <p><strong>✅ Success!</strong></p>
+                            <p>${data.message}</p>
+                            <p><small>Processing time: ${data.processing_time} (${data.processing_time_ms}ms)</small></p>
+                            <p><small>Timestamp: ${data.timestamp}</small></p>
+                        </div>
+                    `;
+                        } else {
+                            resultDiv.innerHTML = `
+                        <div data-theme="light" style="background-color: #f8d7da; color: #721c24; padding: 1rem; border-radius: 0.5rem;">
+                            <p><strong>❌ Error</strong></p>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                        }
+                    })
+                    .catch((error) => {
+                        resultDiv.innerHTML = `
+                    <div data-theme="light" style="background-color: #f8d7da; color: #721c24; padding: 1rem; border-radius: 0.5rem;">
+                        <p><strong>❌ Network Error</strong></p>
+                        <p>Failed to trigger mail API call: ${error.message}</p>
+                    </div>
+                `;
+                    })
+                    .finally(() => {
+                        // Re-enable button
+                        triggerBtn.disabled = false;
+                        triggerBtn.innerHTML = "🚀 Trigger Mail API Call";
+
+                        // Auto-hide result after 10 seconds
+                        setTimeout(() => {
+                            resultDiv.style.display = "none";
+                        }, 10000);
+                    });
+            });
+        }
+    });
+</script>
+{{end}} {{template "layout.html" .}}

@@ -1,0 +1,48 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "e5renew.fullname" . }}-migrate
+  labels:
+    {{- include "e5renew.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.migrations.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "e5renew.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["./e5renew", "--config", "/app/config/config.yaml", "migrate", "up"]
+          env:
+            - name: E5RENEW_DATABASE_ENGINE
+              value: "{{ .Values.config.database.engine }}"
+            - name: E5RENEW_DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: database-dsn
+            - name: E5RENEW_DATABASE_PORT
+              value: "{{ .Values.config.database.port }}"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "e5renew.fullname" . }}-config
+{{- end }}

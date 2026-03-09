@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "e5renew.fullname" . }}
+  labels:
+    {{- include "e5renew.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "e5renew.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "e5renew.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "e5renew.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          env:
+            - name: E5RENEW_DATABASE_ENGINE
+              value: "{{ .Values.config.database.engine }}"
+            - name: E5RENEW_DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: database-dsn
+            - name: E5RENEW_DATABASE_PORT
+              value: "{{ .Values.config.database.port }}"
+            - name: E5RENEW_AZUREAD_TENANT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: azuread-tenant
+            - name: E5RENEW_AZUREAD_CLIENTID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: azuread-client-id
+            - name: E5RENEW_AZUREAD_CLIENTSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: azuread-client-secret
+            - name: E5RENEW_AZUREAD_REDIRECTURL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-config
+                  key: azuread-redirect-uri
+            - name: E5RENEW_USERTOKEN_TENANT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: usertoken-tenant
+            - name: E5RENEW_USERTOKEN_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: usertoken-client-id
+            - name: E5RENEW_USERTOKEN_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: usertoken-client-secret
+            - name: E5RENEW_USERTOKEN_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-config
+                  key: usertoken-redirect-uri
+            - name: E5RENEW_SERVER_PORT
+              value: "{{ .Values.service.targetPort }}"
+            - name: E5RENEW_SERVER_HOST
+              value: "{{ .Values.config.server.host }}"
+            - name: E5RENEW_OTEL_SERVICE_NAME
+              value: "{{ .Values.config.otel.serviceName }}"
+            - name: E5RENEW_OTEL_SERVICE_VERSION
+              value: "{{ .Values.config.otel.serviceVersion }}"
+            - name: E5RENEW_OTEL_ENVIRONMENT
+              value: "{{ .Values.config.otel.environment }}"
+            - name: E5RENEW_OTEL_ENABLE_TRACING
+              value: "{{ .Values.config.otel.enableTracing }}"
+            - name: E5RENEW_OTEL_ENABLE_METRICS
+              value: "{{ .Values.config.otel.enableMetrics }}"
+            - name: E5RENEW_OTEL_ENABLE_STDOUT
+              value: "{{ .Values.config.otel.enableStdout }}"
+            {{- if .Values.config.otel.otlpEndpoint }}
+            - name: E5RENEW_OTEL_OTLP_ENDPOINT
+              value: "{{ .Values.config.otel.otlpEndpoint }}"
+            {{- end }}
+            - name: E5RENEW_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "e5renew.fullname" . }}-secret
+                  key: encryption-key
+            - name: E5RENEW_DEBUG
+              value: "{{ .Values.config.debug }}"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            {{- if .Values.persistence.enabled }}
+            - name: logs
+              mountPath: /app/logs
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "e5renew.fullname" . }}-config
+        {{- if .Values.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "e5renew.fullname" . }}-logs
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

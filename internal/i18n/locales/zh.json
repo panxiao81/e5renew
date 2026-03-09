@@ -1,0 +1,466 @@
+[
+  {
+    "id": "app.title",
+    "translation": "E5续订"
+  },
+  {
+    "id": "nav.home",
+    "translation": "首页"
+  },
+  {
+    "id": "nav.user",
+    "translation": "用户"
+  },
+  {
+    "id": "nav.logs",
+    "translation": "API日志"
+  },
+  {
+    "id": "nav.login",
+    "translation": "登录"
+  },
+  {
+    "id": "nav.logout",
+    "translation": "退出"
+  },
+  {
+    "id": "home.welcome",
+    "translation": "欢迎使用 E5 应用程序！"
+  },
+  {
+    "id": "home.description",
+    "translation": "通过调用Microsoft Graph API端点自动维护您的Microsoft Office 365 E5订阅。"
+  },
+  {
+    "id": "user.personal_mail_access",
+    "translation": "📧 个人邮件访问"
+  },
+  {
+    "id": "user.authorized",
+    "translation": "✅ 已授权"
+  },
+  {
+    "id": "user.not_authorized",
+    "translation": "❌ 未授权"
+  },
+  {
+    "id": "user.token_expires",
+    "translation": "令牌过期时间：{{.Expiry}}"
+  },
+  {
+    "id": "user.trigger_mail_btn",
+    "translation": "🚀 触发邮件API调用"
+  },
+  {
+    "id": "user.revoke_access",
+    "translation": "撤销访问"
+  },
+  {
+    "id": "user.authorize_mail",
+    "translation": "🔑 授权个人邮件访问"
+  },
+  {
+    "id": "user.authorize_description",
+    "translation": "点击下面的按钮授权个人邮件访问以进行后台处理。"
+  },
+  {
+    "id": "user.mail_note",
+    "translation": "个人邮件访问允许应用程序在后台读取您的电子邮件，以维护您的Office 365 E5订阅活动。"
+  },
+  {
+    "id": "user.api_messages",
+    "translation": "API消息"
+  },
+  {
+    "id": "user.no_messages",
+    "translation": "没有可用消息。"
+  },
+  {
+    "id": "user.processing",
+    "translation": "⏳ 处理中..."
+  },
+  {
+    "id": "user.triggering_mail",
+    "translation": "🔄 正在触发邮件API调用..."
+  },
+  {
+    "id": "user.success",
+    "translation": "✅ 成功！"
+  },
+  {
+    "id": "user.error",
+    "translation": "❌ 错误"
+  },
+  {
+    "id": "user.network_error",
+    "translation": "❌ 网络错误"
+  },
+  {
+    "id": "user.network_error_message",
+    "translation": "触发邮件API调用失败：{{.Error}}"
+  },
+  {
+    "id": "user.processing_time",
+    "translation": "处理时间：{{.Time}} ({{.Ms}}毫秒)"
+  },
+  {
+    "id": "user.timestamp",
+    "translation": "时间戳：{{.Timestamp}}"
+  },
+  {
+    "id": "user.debug_mode",
+    "translation": "⚠️ 调试模式 - 令牌信息"
+  },
+  {
+    "id": "user.access_token",
+    "translation": "访问令牌："
+  },
+  {
+    "id": "user.refresh_token",
+    "translation": "刷新令牌："
+  },
+  {
+    "id": "user.user_id",
+    "translation": "用户ID：{{.UserID}}"
+  },
+  {
+    "id": "footer.copyright",
+    "translation": "© 2025 E5续订"
+  },
+  {
+    "id": "footer.powered_by",
+    "translation": "由 Golang 驱动"
+  },
+  {
+    "id": "footer.designed_by",
+    "translation": "设计者"
+  },
+  {
+    "id": "language.english",
+    "translation": "English"
+  },
+  {
+    "id": "language.chinese",
+    "translation": "中文"
+  },
+  {
+    "id": "language.switch",
+    "translation": "语言"
+  },
+  {
+    "id": "logs.title",
+    "translation": "API日志"
+  },
+  {
+    "id": "logs.description",
+    "translation": "监控和分析Microsoft Graph API调用"
+  },
+  {
+    "id": "logs.statistics_summary",
+    "translation": "统计摘要"
+  },
+  {
+    "id": "logs.total_requests",
+    "translation": "总请求数"
+  },
+  {
+    "id": "logs.successful",
+    "translation": "成功"
+  },
+  {
+    "id": "logs.failed",
+    "translation": "失败"
+  },
+  {
+    "id": "logs.avg_duration",
+    "translation": "平均耗时"
+  },
+  {
+    "id": "logs.filters",
+    "translation": "筛选器"
+  },
+  {
+    "id": "logs.time_range",
+    "translation": "时间范围："
+  },
+  {
+    "id": "logs.time_range.1h",
+    "translation": "最近1小时"
+  },
+  {
+    "id": "logs.time_range.6h",
+    "translation": "最近6小时"
+  },
+  {
+    "id": "logs.time_range.24h",
+    "translation": "最近24小时"
+  },
+  {
+    "id": "logs.time_range.7d",
+    "translation": "最近7天"
+  },
+  {
+    "id": "logs.time_range.30d",
+    "translation": "最近30天"
+  },
+  {
+    "id": "logs.job_type",
+    "translation": "任务类型："
+  },
+  {
+    "id": "logs.job_type.all",
+    "translation": "所有类型"
+  },
+  {
+    "id": "logs.job_type.user_mail",
+    "translation": "用户邮件"
+  },
+  {
+    "id": "logs.job_type.client_credentials",
+    "translation": "客户端凭据"
+  },
+  {
+    "id": "logs.user_id",
+    "translation": "用户ID："
+  },
+  {
+    "id": "logs.user_id_placeholder",
+    "translation": "输入用户ID..."
+  },
+  {
+    "id": "logs.apply_filters",
+    "translation": "应用筛选器"
+  },
+  {
+    "id": "logs.api_call_logs",
+    "translation": "API调用日志"
+  },
+  {
+    "id": "logs.table.time",
+    "translation": "时间"
+  },
+  {
+    "id": "logs.table.endpoint",
+    "translation": "端点"
+  },
+  {
+    "id": "logs.table.method",
+    "translation": "方法"
+  },
+  {
+    "id": "logs.table.status",
+    "translation": "状态"
+  },
+  {
+    "id": "logs.table.duration",
+    "translation": "耗时"
+  },
+  {
+    "id": "logs.table.user",
+    "translation": "用户"
+  },
+  {
+    "id": "logs.table.job_type",
+    "translation": "任务类型"
+  },
+  {
+    "id": "logs.table.error",
+    "translation": "错误"
+  },
+  {
+    "id": "logs.no_logs_found",
+    "translation": "未找到符合筛选条件的日志。"
+  },
+  {
+    "id": "logs.endpoint_statistics",
+    "translation": "端点统计"
+  },
+  {
+    "id": "logs.stats.total_requests",
+    "translation": "总请求数"
+  },
+  {
+    "id": "logs.stats.successful",
+    "translation": "成功"
+  },
+  {
+    "id": "logs.stats.failed",
+    "translation": "失败"
+  },
+  {
+    "id": "logs.stats.success_rate",
+    "translation": "成功率"
+  },
+  {
+    "id": "logs.stats.avg_duration",
+    "translation": "平均耗时"
+  },
+  {
+    "id": "logs.previous",
+    "translation": "上一页"
+  },
+  {
+    "id": "logs.page",
+    "translation": "第{{.Page}}页"
+  },
+  {
+    "id": "logs.next",
+    "translation": "下一页"
+  },
+  {
+    "id": "logs.view_detailed_stats",
+    "translation": "📈 查看详细统计"
+  },
+  {
+    "id": "logs.refresh",
+    "translation": "🔄 刷新"
+  },
+  {
+    "id": "stats.title",
+    "translation": "API统计"
+  },
+  {
+    "id": "stats.description",
+    "translation": "Microsoft Graph API使用的详细分析"
+  },
+  {
+    "id": "stats.time_range",
+    "translation": "时间范围"
+  },
+  {
+    "id": "stats.select_time_range",
+    "translation": "选择时间范围："
+  },
+  {
+    "id": "stats.from_to",
+    "translation": "从：{{.StartTime}} 到 {{.EndTime}}"
+  },
+  {
+    "id": "stats.overall_statistics",
+    "translation": "总体统计"
+  },
+  {
+    "id": "stats.total_requests",
+    "translation": "总请求数"
+  },
+  {
+    "id": "stats.success_rate",
+    "translation": "成功率"
+  },
+  {
+    "id": "stats.avg_duration",
+    "translation": "平均耗时"
+  },
+  {
+    "id": "stats.detailed_metrics",
+    "translation": "详细指标"
+  },
+  {
+    "id": "stats.request_status",
+    "translation": "请求状态"
+  },
+  {
+    "id": "stats.successful_requests",
+    "translation": "成功请求"
+  },
+  {
+    "id": "stats.failed_requests",
+    "translation": "失败请求"
+  },
+  {
+    "id": "stats.response_times",
+    "translation": "响应时间"
+  },
+  {
+    "id": "stats.average_duration",
+    "translation": "平均耗时"
+  },
+  {
+    "id": "stats.minimum_duration",
+    "translation": "最小耗时"
+  },
+  {
+    "id": "stats.maximum_duration",
+    "translation": "最大耗时"
+  },
+  {
+    "id": "stats.endpoint_performance",
+    "translation": "端点性能"
+  },
+  {
+    "id": "stats.performance",
+    "translation": "性能"
+  },
+  {
+    "id": "stats.fast",
+    "translation": "快"
+  },
+  {
+    "id": "stats.medium",
+    "translation": "中等"
+  },
+  {
+    "id": "stats.slow",
+    "translation": "慢"
+  },
+  {
+    "id": "stats.no_endpoint_stats",
+    "translation": "选定时间范围内没有可用的端点统计数据。"
+  },
+  {
+    "id": "stats.performance_insights",
+    "translation": "性能洞察"
+  },
+  {
+    "id": "stats.health_status",
+    "translation": "健康状态"
+  },
+  {
+    "id": "stats.excellent",
+    "translation": "优秀"
+  },
+  {
+    "id": "stats.excellent_desc",
+    "translation": "系统运行状况很好"
+  },
+  {
+    "id": "stats.good",
+    "translation": "良好"
+  },
+  {
+    "id": "stats.good_desc",
+    "translation": "系统运行状况正常"
+  },
+  {
+    "id": "stats.poor",
+    "translation": "较差"
+  },
+  {
+    "id": "stats.poor_desc",
+    "translation": "系统需要关注"
+  },
+  {
+    "id": "stats.response_time_label",
+    "translation": "响应时间"
+  },
+  {
+    "id": "stats.response_excellent",
+    "translation": "响应时间很好"
+  },
+  {
+    "id": "stats.response_acceptable",
+    "translation": "响应时间可接受"
+  },
+  {
+    "id": "stats.response_improvement",
+    "translation": "响应时间需要改进"
+  },
+  {
+    "id": "stats.view_detailed_logs",
+    "translation": "📋 查看详细日志"
+  },
+  {
+    "id": "stats.refresh",
+    "translation": "🔄 刷新"
+  }
+]

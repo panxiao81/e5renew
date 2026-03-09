@@ -1,0 +1,21 @@
+database:
+  engine: "${DATABASE_ENGINE:mysql}"
+  port: ${DATABASE_PORT:3306}
+  dsn: "${DATABASE_DSN}"
+azureAD:
+  tenant: "${AZURE_AD_TENANT}"
+  clientID: "${AZURE_AD_CLIENT_ID}"
+  clientSecret: "${AZURE_AD_CLIENT_SECRET}"
+  redirectURL: "${AZURE_AD_REDIRECT_URL}"
+listen: "${LISTEN_ADDRESS}"
+debug: false
+encryption:
+  key: "${ENCRYPTION_KEY}"
+otel:
+  service_name: "${OTEL_SERVICE_NAME:e5renew}"
+  service_version: "${OTEL_SERVICE_VERSION:v0.1.0}"
+  environment: "${OTEL_ENVIRONMENT:production}"
+  otlp_endpoint: "${OTEL_OTLP_ENDPOINT}"
+  enable_tracing: "${OTEL_ENABLE_TRACING:true}"
+  enable_metrics: "${OTEL_ENABLE_METRICS:true}"
+  enable_stdout: "${OTEL_ENABLE_STDOUT:false}"

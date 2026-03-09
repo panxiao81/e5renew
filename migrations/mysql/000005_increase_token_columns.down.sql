@@ -1,0 +1,3 @@
+ALTER TABLE user_tokens
+MODIFY COLUMN access_token VARCHAR(255) NOT NULL,
+MODIFY COLUMN refresh_token VARCHAR(255) NOT NULL;

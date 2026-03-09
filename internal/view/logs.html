@@ -1,0 +1,197 @@
+{{define "title"}}{{t "app.title"}} - {{.Title}}{{end}}
+
+{{define "content"}}
+<article>
+    <header>
+        <h1>📊 {{t "logs.title"}}</h1>
+        <p>{{t "logs.description"}}</p>
+    </header>
+
+    <!-- Statistics Summary -->
+    {{if .Stats}}
+    <section>
+        <h2>{{t "logs.statistics_summary"}}</h2>
+        <div class="grid">
+            <div>
+                <h3>{{t "logs.total_requests"}}</h3>
+                <p><strong>{{.Stats.TotalRequests}}</strong></p>
+            </div>
+            <div>
+                <h3>{{t "logs.successful"}}</h3>
+                <p style="color: #28a745;"><strong>{{.Stats.SuccessfulRequests}}</strong></p>
+            </div>
+            <div>
+                <h3>{{t "logs.failed"}}</h3>
+                <p style="color: #dc3545;"><strong>{{.Stats.FailedRequests}}</strong></p>
+            </div>
+            <div>
+                <h3>{{t "logs.avg_duration"}}</h3>
+                <p><strong>{{printf "%.0f" .Stats.AvgDurationMs}}ms</strong></p>
+            </div>
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Filters -->
+    <section>
+        <h2>{{t "logs.filters"}}</h2>
+        <form method="GET" action="/logs">
+            <div class="grid">
+                <div>
+                    <label for="time_range">{{t "logs.time_range"}}</label>
+                    <select name="time_range" id="time_range">
+                        <option value="1h" {{if eq .TimeRange "1h"}}selected{{end}}>{{t "logs.time_range.1h"}}</option>
+                        <option value="6h" {{if eq .TimeRange "6h"}}selected{{end}}>{{t "logs.time_range.6h"}}</option>
+                        <option value="24h" {{if eq .TimeRange "24h"}}selected{{end}}>{{t "logs.time_range.24h"}}</option>
+                        <option value="7d" {{if eq .TimeRange "7d"}}selected{{end}}>{{t "logs.time_range.7d"}}</option>
+                        <option value="30d" {{if eq .TimeRange "30d"}}selected{{end}}>{{t "logs.time_range.30d"}}</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="job_type">{{t "logs.job_type"}}</label>
+                    <select name="job_type" id="job_type">
+                        <option value="">{{t "logs.job_type.all"}}</option>
+                        <option value="user_mail" {{if eq .JobType "user_mail"}}selected{{end}}>{{t "logs.job_type.user_mail"}}</option>
+                        <option value="client_credentials" {{if eq .JobType "client_credentials"}}selected{{end}}>{{t "logs.job_type.client_credentials"}}</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="user_id">{{t "logs.user_id"}}</label>
+                    <input type="text" name="user_id" id="user_id" value="{{.UserID}}" placeholder="{{t "logs.user_id_placeholder"}}">
+                </div>
+                <div>
+                    <button type="submit">{{t "logs.apply_filters"}}</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Logs Table -->
+    <section>
+        <h2>{{t "logs.api_call_logs"}}</h2>
+        {{if .Logs}}
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{t "logs.table.time"}}</th>
+                        <th>{{t "logs.table.endpoint"}}</th>
+                        <th>{{t "logs.table.method"}}</th>
+                        <th>{{t "logs.table.status"}}</th>
+                        <th>{{t "logs.table.duration"}}</th>
+                        <th>{{t "logs.table.user"}}</th>
+                        <th>{{t "logs.table.job_type"}}</th>
+                        <th>{{t "logs.table.error"}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Logs}}
+                    <tr>
+                        <td><small class="timestamp">{{.RequestTime.Format "2006-01-02 15:04:05"}}</small></td>
+                        <td><code>{{.ApiEndpoint}}</code></td>
+                        <td><small>{{.HttpMethod}}</small></td>
+                        <td>
+                            {{if .Success}}
+                                <span style="color: #28a745;">✅ {{.HttpStatusCode}}</span>
+                            {{else}}
+                                <span style="color: #dc3545;">❌ {{.HttpStatusCode}}</span>
+                            {{end}}
+                        </td>
+                        <td><small>{{.DurationMs}}ms</small></td>
+                        <td>
+                            {{if .UserID.Valid}}
+                                <small>{{.UserID.String}}</small>
+                            {{else}}
+                                <small>-</small>
+                            {{end}}
+                        </td>
+                        <td><small>{{.JobType}}</small></td>
+                        <td>
+                            {{if .ErrorMessage.Valid}}
+                                <small style="color: #dc3545;">{{.ErrorMessage.String}}</small>
+                            {{else}}
+                                <small>-</small>
+                            {{end}}
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <p>{{t "logs.no_logs_found"}}</p>
+        {{end}}
+    </section>
+
+    <!-- Endpoint Statistics -->
+    {{if .EndpointStats}}
+    <section>
+        <h2>{{t "logs.endpoint_statistics"}}</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{t "logs.table.endpoint"}}</th>
+                        <th>{{t "logs.stats.total_requests"}}</th>
+                        <th>{{t "logs.stats.successful"}}</th>
+                        <th>{{t "logs.stats.failed"}}</th>
+                        <th>{{t "logs.stats.success_rate"}}</th>
+                        <th>{{t "logs.stats.avg_duration"}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .EndpointStats}}
+                    <tr>
+                        <td><code>{{.APIEndpoint}}</code></td>
+                        <td>{{.TotalRequests}}</td>
+                        <td style="color: #28a745;">{{.SuccessfulRequests}}</td>
+                        <td style="color: #dc3545;">{{.FailedRequests}}</td>
+                        <td>
+                            {{printf "%.1f%%" .SuccessRate}}
+                        </td>
+                        <td>{{printf "%.0f" .AvgDurationMs}}ms</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Pagination -->
+    <section>
+        <nav>
+            <ul>
+                {{if gt .CurrentPage 1}}
+                    <li><a href="/logs?page={{.PrevPage}}&time_range={{.TimeRange}}&job_type={{.JobType}}&user_id={{.UserID}}" role="button" class="secondary">{{t "logs.previous"}}</a></li>
+                {{end}}
+                <li><span>{{t "logs.page" (dict "Page" .CurrentPage)}}</span></li>
+                <li><a href="/logs?page={{.NextPage}}&time_range={{.TimeRange}}&job_type={{.JobType}}&user_id={{.UserID}}" role="button" class="secondary">{{t "logs.next"}}</a></li>
+            </ul>
+        </nav>
+    </section>
+
+    <!-- Actions -->
+    <section>
+        <div class="grid">
+            <div>
+                <a href="/logs/stats" role="button" class="secondary">{{t "logs.view_detailed_stats"}}</a>
+            </div>
+            <div>
+                <button onclick="refreshLogs()" class="secondary">{{t "logs.refresh"}}</button>
+            </div>
+        </div>
+    </section>
+</article>
+
+<script>
+function refreshLogs() {
+    window.location.reload();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshLogs, 30000);
+</script>
+{{end}}
+
+{{template "layout.html" .}}

@@ -1,0 +1,52 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+
+# Build directory
+bin/
+__debug_bin*
+
+# Development configuration with sensitive data
+config.dev.yaml
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+
+# Coverage reports
+coverage.html
+coverage.out
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local/shared Helm values overrides
+helm/e5renew/values-shared-postgres.yaml

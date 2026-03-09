@@ -1,0 +1,28 @@
+apiVersion: v2
+name: e5renew
+description: A Helm chart for E5renew - Microsoft Office 365 E5 subscription renewal service
+type: application
+version: 0.1.0
+appVersion: "v0.1.0"
+home: https://github.com/panxiao81/e5renew
+sources:
+  - https://github.com/panxiao81/e5renew
+maintainers:
+  - name: panxiao81
+keywords:
+  - office365
+  - e5
+  - microsoft
+  - graph-api
+  - subscription
+annotations:
+  category: Productivity
+dependencies:
+  - name: mysql
+    version: "12.2.4"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: mysql.enabled
+  - name: postgresql
+    version: "18.5.2"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgres.enabled

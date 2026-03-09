@@ -1,0 +1,137 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - typecheck
+    - unused
+    - bodyclose
+    - dupl
+    - gocyclo
+    - goconst
+    - gocritic
+    - gofumpt
+    - gosec
+    - revive
+    - unconvert
+    - unparam
+    - whitespace
+    - exportloopref
+    - noctx
+    - gocognit
+    - godot
+    - goerr113
+    - goheader
+    - gci
+    - godox
+    - wrapcheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+      
+  gocyclo:
+    min-complexity: 15
+    
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+    
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - wrapperFunc
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - importShadow
+      
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104 # Errors unhandled - we handle this with errcheck
+      
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: var-naming
+        disabled: true
+      - name: package-comments
+        disabled: true
+        
+  gofumpt:
+    extra-rules: true
+    
+  gci:
+    local-prefixes: github.com/panxiao81/e5renew
+    
+  goheader:
+    values:
+      const:
+        COMPANY: panxiao81
+        LICENSE: MIT
+    template: |-
+      /*
+      Copyright © {{ YEAR }} {{ COMPANY }}
+      Licensed under the {{ LICENSE }} license.
+      */
+      
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - goconst
+        - gocritic
+        - gocyclo
+        - dupl
+        - wrapcheck
+    - path: internal/db/
+      linters:
+        - gocritic
+        - revive
+        - gosec
+        - unused
+      text: "generated"
+    - path: cmd/
+      linters:
+        - goheader
+      text: "Copyright"
+    - path: internal/view/
+      linters:
+        - goheader
+      text: "Copyright"
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
