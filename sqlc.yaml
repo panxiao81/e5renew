@@ -5,12 +5,10 @@ sql:
     schema: "sql/schema.sql"
     gen:
       go:
-        # package: "github.com/panxiao81/e5renew/internal/db"
-        out: "internal/db"
+        out: "internal/db/mysql"
   - engine: "postgresql"
-    queries: "sql/query.sql"
+    queries: "sql/query.postgres.sql"
     schema: "sql/schema-postgres.sql"
     gen:
       go:
-        # package: "github.com/panxiao81/e5renew/internal/db"
-        out: "internal/db"
+        out: "internal/db/postgres"

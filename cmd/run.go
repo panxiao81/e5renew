@@ -85,7 +85,7 @@ func Run() error {
 		return fmt.Errorf("failed to initialize database connection: %w", err)
 	}
 	defer dbConn.Close()
-	queries := db.New(dbConn)
+	queries := db.New(db.WrapDBTXForEngine(engine, dbConn))
 	metrics.RecordDBConnection(ctx, 1)
 	dbSpan.SetAttributes(
 		attribute.String("database.dsn", viper.GetString("database.dsn")),

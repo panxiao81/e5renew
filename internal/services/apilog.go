@@ -274,13 +274,7 @@ func (s *APILogService) GetAPILogStats(ctx context.Context, start, end time.Time
 		return nil, fmt.Errorf("failed to get API log stats: %w", err)
 	}
 
-	// Handle interface{} types from database
-	var avgDuration float64
-	if stats.AvgDurationMs != nil {
-		if val, ok := stats.AvgDurationMs.(float64); ok {
-			avgDuration = val
-		}
-	}
+	avgDuration := stats.AvgDurationMs
 
 	var minDuration, maxDuration int32
 	if stats.MinDurationMs != nil {
@@ -336,19 +330,12 @@ func (s *APILogService) GetAPILogStatsByEndpoint(ctx context.Context, start, end
 
 	result := make([]APILogEndpointStats, len(stats))
 	for i, stat := range stats {
-		var avgDuration float64
-		if stat.AvgDurationMs != nil {
-			if val, ok := stat.AvgDurationMs.(float64); ok {
-				avgDuration = val
-			}
-		}
-
 		result[i] = APILogEndpointStats{
 			APIEndpoint:        stat.ApiEndpoint,
 			TotalRequests:      stat.TotalRequests,
 			SuccessfulRequests: stat.SuccessfulRequests,
 			FailedRequests:     stat.FailedRequests,
-			AvgDurationMs:      avgDuration,
+			AvgDurationMs:      stat.AvgDurationMs,
 		}
 	}
 

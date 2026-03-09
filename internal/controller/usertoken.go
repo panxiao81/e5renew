@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/panxiao81/e5renew/internal/environment"
@@ -89,13 +90,36 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 	// Verify state parameter
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
+	oauthError := r.URL.Query().Get("error")
+	oauthErrorDescription := r.URL.Query().Get("error_description")
 	sessionState := c.SessionManager.PopString(ctx, "user_token_state")
+
+	if oauthError != "" {
+		c.Logger.Error("User-token callback returned OAuth error",
+			"oauth_error", oauthError,
+			"oauth_error_description", oauthErrorDescription,
+			"has_state", state != "",
+			"state_len", len(state),
+			"path", r.URL.Path,
+		)
+		c.errorHandler.HandleError(w, r, nil, http.StatusBadRequest, "Authorization failed")
+		return
+	}
 
 	// Validate inputs
 	stateValidation := c.validator.ValidateState(state)
 	codeValidation := c.validator.ValidateAuthCode(code)
 	
 	if !stateValidation.Valid || !codeValidation.Valid {
+		c.Logger.Error("User-token callback validation failed",
+			"state_valid", stateValidation.Valid,
+			"state_errors", strings.Join(stateValidation.Errors, "; "),
+			"state_len", len(state),
+			"code_valid", codeValidation.Valid,
+			"code_errors", strings.Join(codeValidation.Errors, "; "),
+			"code_len", len(code),
+			"path", r.URL.Path,
+		)
 		span.SetAttributes(
 			attribute.String("error", "invalid_input"),
 			attribute.Bool("success", false),
@@ -212,7 +236,7 @@ func generateUserTokenState() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(b), nil
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 // RegisterRoutes registers the user token controller routes

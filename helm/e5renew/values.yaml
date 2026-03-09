@@ -2,9 +2,9 @@
 replicaCount: 1
 
 image:
-  repository: e5renew
+  repository: ghcr.io/panxiao81/e5renew
   pullPolicy: IfNotPresent
-  tag: "latest"
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""

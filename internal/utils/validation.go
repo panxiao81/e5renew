@@ -61,8 +61,8 @@ func (v *Validator) ValidateState(state string) ValidationResult {
 		errors = append(errors, "state parameter has invalid length")
 	}
 	
-	// State should be base64 encoded random data
-	validStateRegex := regexp.MustCompile(`^[A-Za-z0-9+/]+=*$`)
+	// Accept both standard and URL-safe base64 state encodings.
+	validStateRegex := regexp.MustCompile(`^[A-Za-z0-9+/_-]+=*$`)
 	if !validStateRegex.MatchString(state) {
 		errors = append(errors, "state parameter has invalid format")
 	}
@@ -79,12 +79,13 @@ func (v *Validator) ValidateAuthCode(code string) ValidationResult {
 		return ValidationResult{Valid: false, Errors: errors}
 	}
 	
-	if len(code) < 10 || len(code) > 1024 {
+	if len(code) < 10 {
 		errors = append(errors, "authorization code has invalid length")
 	}
-	
-	// Basic sanity check - should contain alphanumeric characters and common symbols
-	if !regexp.MustCompile(`^[A-Za-z0-9._-]+$`).MatchString(code) {
+
+	// Authorization codes are opaque values from the IdP.
+	// Reject only whitespace/control chars, allow URL-safe and encoded symbols.
+	if strings.TrimSpace(code) != code || strings.ContainsAny(code, "\r\n\t ") {
 		errors = append(errors, "authorization code has invalid format")
 	}
 	
