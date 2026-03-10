@@ -12,10 +12,10 @@ type Application struct {
 	Logger         *slog.Logger
 	Template       *view.Template
 	SessionManager *scs.SessionManager
-	DB             *db.Queries
+	DB             db.Database
 }
 
-func NewApplication(logger *slog.Logger, template *view.Template, scs *scs.SessionManager, db *db.Queries) *Application {
+func NewApplication(logger *slog.Logger, template *view.Template, scs *scs.SessionManager, db db.Database) *Application {
 	return &Application{
 		Logger:         logger,
 		Template:       template,

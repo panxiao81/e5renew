@@ -7,10 +7,10 @@ import (
 
 type JobScheduler struct {
 	gocron.Scheduler
-	db *db.Queries
+	db db.APILogStore
 }
 
-func NewJobScheduler(db *db.Queries) (*JobScheduler, error) {
+func NewJobScheduler(db db.APILogStore) (*JobScheduler, error) {
 	s, err := gocron.NewScheduler()
 	if err != nil {
 		return nil, err

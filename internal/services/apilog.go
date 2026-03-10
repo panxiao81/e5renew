@@ -51,12 +51,12 @@ type APILogEndpointStats struct {
 
 // APILogService handles API log operations
 type APILogService struct {
-	db     *db.Queries
+	db     db.APILogStore
 	logger *slog.Logger
 }
 
 // NewAPILogService creates a new APILogService instance
-func NewAPILogService(database *db.Queries, logger *slog.Logger) *APILogService {
+func NewAPILogService(database db.APILogStore, logger *slog.Logger) *APILogService {
 	return &APILogService{
 		db:     database,
 		logger: logger,

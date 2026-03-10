@@ -26,6 +26,12 @@ vet:
 lint:
 	golangci-lint run
 
+ci:
+	$(MAKE) fmt
+	$(MAKE) vet
+	$(MAKE) lint
+	$(MAKE) test-coverage
+
 lint-fix:
 	golangci-lint run --fix
 
@@ -51,4 +57,4 @@ migrate-force:
 	@read -p "Enter version to force: " version; \
 	go run main.go migrate force $$version
 
-.PHONY: dev sqlc test test-coverage test-race bench fmt vet lint lint-fix clean build migrate-up migrate-down migrate-status migrate-version migrate-force
+.PHONY: dev sqlc test test-coverage test-race bench fmt vet lint lint-fix ci clean build migrate-up migrate-down migrate-status migrate-version migrate-force

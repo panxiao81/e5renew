@@ -15,14 +15,14 @@ import (
 
 // UserTokenService handles user OAuth2 token management
 type UserTokenService struct {
-	db           *db.Queries
+	db           db.UserTokenStore
 	oauth2Config *oauth2.Config
 	logger       *slog.Logger
 	encryption   *EncryptionService
 }
 
 // NewUserTokenService creates a new UserTokenService instance
-func NewUserTokenService(database *db.Queries, config *oauth2.Config, logger *slog.Logger, encryption *EncryptionService) *UserTokenService {
+func NewUserTokenService(database db.UserTokenStore, config *oauth2.Config, logger *slog.Logger, encryption *EncryptionService) *UserTokenService {
 	return &UserTokenService{
 		db:           database,
 		oauth2Config: config,

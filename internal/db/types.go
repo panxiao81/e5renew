@@ -17,4 +17,3 @@ type GetAPILogsByJobTypeParams = pgdb.GetAPILogsByJobTypeParams
 type GetAPILogsByTimeRangeParams = pgdb.GetAPILogsByTimeRangeParams
 type GetAPILogsByUserParams = pgdb.GetAPILogsByUserParams
 type UpdateUserTokensParams = pgdb.UpdateUserTokensParams
-

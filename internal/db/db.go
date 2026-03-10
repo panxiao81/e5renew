@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	mydb "github.com/panxiao81/e5renew/internal/db/mysql"
 	pgdb "github.com/panxiao81/e5renew/internal/db/postgres"
 )
 
@@ -16,15 +17,32 @@ type DBTX interface {
 }
 
 func New(db DBTX) *Queries {
-	return &Queries{
-		db: db,
-		pg: pgdb.New(db),
+	return NewWithEngine(EnginePostgres, db)
+}
+
+func NewWithEngine(engine Engine, db DBTX) *Queries {
+	queries := &Queries{db: db, engine: engine}
+
+	switch engine {
+	case EngineMySQL:
+		mysqlQueries := mydb.New(db)
+		adapter := &mysqlAdapter{q: mysqlQueries}
+		queries.apilog = adapter
+		queries.tokens = adapter
+	default:
+		pgQueries := pgdb.New(db)
+		queries.apilog = pgQueries
+		queries.tokens = pgQueries
 	}
+
+	return queries
 }
 
 type Queries struct {
-	db DBTX
-	pg *pgdb.Queries
+	db     DBTX
+	engine Engine
+	apilog APILogStore
+	tokens UserTokenStore
 }
 
 func (q *Queries) PingContext(ctx context.Context) error {
@@ -47,6 +65,6 @@ func (q *Queries) Stats() (sql.DBStats, error) {
 	return statser.Stats(), nil
 }
 
-func (q *Queries) WithTx(tx *sql.Tx) *Queries {
-	return New(tx)
+func (q *Queries) WithTx(tx *sql.Tx) Database {
+	return NewWithEngine(q.engine, tx)
 }
