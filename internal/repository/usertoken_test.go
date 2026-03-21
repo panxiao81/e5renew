@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +24,25 @@ type fakeUserTokenStore struct {
 	listErr   error
 	deleteID  string
 	deleteErr error
+}
+
+func TestNewUserTokenRepositoryWithEngine(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer sqlDB.Close()
+
+	expiry := time.Now().UTC().Add(time.Hour)
+	rows := sqlmock.NewRows([]string{"id", "user_id", "access_token", "refresh_token", "expiry", "token_type"}).
+		AddRow(1, "u1", "a", "r", expiry, "Bearer")
+	mock.ExpectQuery(`(?s)select id, user_id, access_token, refresh_token, expiry, token_type\s+from user_tokens\s+where user_id = \?`).
+		WithArgs("u1").
+		WillReturnRows(rows)
+
+	repo := NewUserTokenRepositoryWithEngine(db.EngineMySQL, sqlDB)
+	token, err := repo.GetByUserID(context.Background(), "u1")
+	require.NoError(t, err)
+	require.Equal(t, "u1", token.UserID)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func (f *fakeUserTokenStore) CreateUserTokens(_ context.Context, arg db.CreateUserTokensParams) (sql.Result, error) {
