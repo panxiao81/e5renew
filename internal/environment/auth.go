@@ -12,6 +12,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var verifyIDTokenWithProvider = func(a *Authenticator, ctx context.Context, clientID, rawIDToken string) (*oidc.IDToken, error) {
+	oidcConfig := &oidc.Config{ClientID: clientID}
+	return a.Verifier(oidcConfig).Verify(ctx, rawIDToken)
+}
+
 type Authenticator struct {
 	*oidc.Provider
 	oauth2.Config
@@ -53,10 +58,7 @@ func (a *Authenticator) VerifyIDToken(ctx context.Context, token *oauth2.Token) 
 		return nil, errors.New("no id_token field in oauth2 token")
 	}
 
-	oidcConfig := &oidc.Config{
-		ClientID: a.ClientID,
-	}
-	return a.Verifier(oidcConfig).Verify(ctx, rawIDToken)
+	return verifyIDTokenWithProvider(a, ctx, a.ClientID, rawIDToken)
 }
 
 func ParseClaims(token *oidc.IDToken, claims *AzureADClaims) error {

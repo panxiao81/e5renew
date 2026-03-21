@@ -33,7 +33,7 @@ func TestGetMigrator_PostgresDriverWithDocker(t *testing.T) {
 
 	dsn := os.Getenv("E5RENEW_TEST_POSTGRES_DSN")
 	if dsn == "" {
-		dsn = "postgres://e5renew:e5renew@127.0.0.1:15432/e5renew_test?sslmode=disable"
+		t.Skip("Postgres integration test requires E5RENEW_TEST_POSTGRES_DSN")
 	}
 
 	viper.Set("database.engine", "postgres")

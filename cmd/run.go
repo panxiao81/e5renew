@@ -29,6 +29,34 @@ import (
 	"github.com/panxiao81/e5renew/internal/view"
 )
 
+var newAppJobScheduler = jobs.NewJobScheduler
+var runNewJobScheduler = newJobScheduler
+var newTelemetryProvider = telemetry.NewProvider
+var newTelemetryMetrics = telemetry.NewMetrics
+var openAppDB = db.NewDBWithEngine
+var newQueriesWithEngine = db.NewWithEngine
+var newAppSessionStore = newSessionStoreForEngine
+var newTemplateRenderer = view.New
+var initAppI18n = i18n.Init
+var newAppAuthenticator = environment.NewAuthenticator
+var newAppUserTokenAuthenticator = environment.NewUserTokenAuthenticator
+var newAppEncryptionService = services.NewEncryptionService
+var registerUserMailTokensJob = func(js *jobs.JobScheduler, mailService *services.MailService, logger *slog.Logger) error {
+	return js.RegisterUserMailTokensJob(mailService, logger)
+}
+var registerLogCleanupJob = func(js *jobs.JobScheduler, apiLogService *services.APILogService, logger *slog.Logger, retentionDays int) error {
+	return js.RegisterLogCleanupJob(apiLogService, logger, retentionDays)
+}
+
+type runHTTPServer interface {
+	ListenAndServe() error
+	Shutdown(context.Context) error
+}
+
+var newRunHTTPServer = func(addr string, handler http.Handler) runHTTPServer {
+	return &http.Server{Addr: addr, Handler: handler}
+}
+
 func Run() error {
 	ctx := context.Background()
 
@@ -41,7 +69,7 @@ func Run() error {
 
 	// Initialize OpenTelemetry
 	otelConfig := telemetry.NewConfig()
-	otelProvider, err := telemetry.NewProvider(ctx, otelConfig, logger)
+	otelProvider, err := newTelemetryProvider(ctx, otelConfig, logger)
 	if err != nil {
 		logger.Error("Failed to initialize OpenTelemetry: " + err.Error())
 		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
@@ -49,7 +77,7 @@ func Run() error {
 
 	// Initialize metrics
 	meter := otel.Meter("github.com/panxiao81/e5renew")
-	metrics, err := telemetry.NewMetrics(meter, logger)
+	metrics, err := newTelemetryMetrics(meter, logger)
 	if err != nil {
 		logger.Error("Failed to initialize metrics: " + err.Error())
 		return fmt.Errorf("failed to initialize metrics: %w", err)
@@ -76,7 +104,7 @@ func Run() error {
 	// Initialize database with tracing
 	ctx, dbSpan := tracer.Start(ctx, "database_initialization")
 	engine := db.ParseEngine(viper.GetString("database.engine"))
-	dbConn, err := db.NewDBWithEngine(engine, viper.GetString("database.dsn"))
+	dbConn, err := openAppDB(engine, viper.GetString("database.dsn"))
 	if err != nil {
 		logger.Error("Failed to initialize Database Connection " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "database_connection")
@@ -85,7 +113,7 @@ func Run() error {
 		return fmt.Errorf("failed to initialize database connection: %w", err)
 	}
 	defer dbConn.Close()
-	queries := db.NewWithEngine(engine, dbConn)
+	queries := newQueriesWithEngine(engine, dbConn)
 	metrics.RecordDBConnection(ctx, 1)
 	dbSpan.SetAttributes(
 		attribute.String("database.dsn", viper.GetString("database.dsn")),
@@ -95,7 +123,7 @@ func Run() error {
 
 	sessionManager := scs.New()
 	// newSessionStoreForEngine picks mysqlstore/postgresstore based on database.engine
-	store, cleanup, err := newSessionStoreForEngine(engine, dbConn, 30*time.Minute)
+	store, cleanup, err := newAppSessionStore(engine, dbConn, 30*time.Minute)
 	if err != nil {
 		logger.Error("Failed to initialize session store: " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "session_store")
@@ -114,7 +142,7 @@ func Run() error {
 
 	// Template initialization with tracing
 	ctx, tmplSpan := tracer.Start(ctx, "template_initialization")
-	tmpl, err := view.New()
+	tmpl, err := newTemplateRenderer()
 	if err != nil {
 		logger.Error("Failed to initialize templates: %v " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "template_initialization")
@@ -126,7 +154,7 @@ func Run() error {
 
 	// I18n initialization with tracing
 	ctx, i18nSpan := tracer.Start(ctx, "i18n_initialization")
-	err = i18n.Init()
+	err = initAppI18n()
 	if err != nil {
 		logger.Error("Failed to initialize i18n: " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "i18n_initialization")
@@ -138,7 +166,7 @@ func Run() error {
 
 	// Authenticator initialization with tracing
 	ctx, authSpan := tracer.Start(ctx, "authenticator_initialization")
-	auth, err := environment.NewAuthenticator()
+	auth, err := newAppAuthenticator()
 	if err != nil {
 		logger.Error("Failed to initialize Authenticator Provider " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "authenticator_initialization")
@@ -150,7 +178,7 @@ func Run() error {
 
 	// User token authenticator initialization with tracing
 	ctx, userTokenAuthSpan := tracer.Start(ctx, "user_token_authenticator_initialization")
-	userTokenAuth, err := environment.NewUserTokenAuthenticator()
+	userTokenAuth, err := newAppUserTokenAuthenticator()
 	if err != nil {
 		logger.Error("Failed to initialize User Token Authenticator Provider " + err.Error())
 		telemetry.RecordError(ctx, metrics, err, "user_token_authenticator_initialization")
@@ -164,7 +192,7 @@ func Run() error {
 	ctx, servicesSpan := tracer.Start(ctx, "services_initialization")
 
 	// Initialize encryption service
-	encryptionService, err := services.NewEncryptionService()
+	encryptionService, err := newAppEncryptionService()
 	if err != nil {
 		servicesSpan.RecordError(err)
 		servicesSpan.End()
@@ -194,7 +222,7 @@ func Run() error {
 
 	// Job scheduler initialization with tracing
 	ctx, jobSpan := tracer.Start(ctx, "job_scheduler_initialization")
-	s, err := newJobScheduler(queries, mailService, apiLogService, logger)
+	s, err := runNewJobScheduler(queries, mailService, apiLogService, logger)
 	if err != nil {
 		logger.Error(err.Error())
 		telemetry.RecordError(ctx, metrics, err, "job_scheduler_initialization")
@@ -215,10 +243,7 @@ func Run() error {
 		"status", "running",
 		"description", "All background jobs are now active")
 
-	server := &http.Server{
-		Addr:    viper.GetString("listen"),
-		Handler: r,
-	}
+	server := newRunHTTPServer(viper.GetString("listen"), r)
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -285,7 +310,7 @@ func newHttpLogger() *slog.Logger {
 
 func newJobScheduler(queries *db.Queries, mailService *services.MailService, apiLogService *services.APILogService, logger *slog.Logger) (gocron.Scheduler, error) {
 	// Create JobScheduler wrapper
-	jobScheduler, err := jobs.NewJobScheduler(queries)
+	jobScheduler, err := newAppJobScheduler(queries)
 	if err != nil {
 		return nil, err
 	}
@@ -320,13 +345,13 @@ func newJobScheduler(queries *db.Queries, mailService *services.MailService, api
 		"schedule", "random interval 1-2 hours")
 
 	// Register user mail tokens job
-	err = jobScheduler.RegisterUserMailTokensJob(mailService, logger)
+	err = registerUserMailTokensJob(jobScheduler, mailService, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// Register log cleanup job (30 days retention)
-	err = jobScheduler.RegisterLogCleanupJob(apiLogService, logger, 30)
+	err = registerLogCleanupJob(jobScheduler, apiLogService, logger, 30)
 	if err != nil {
 		return nil, err
 	}

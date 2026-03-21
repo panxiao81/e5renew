@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"database/sql"
 	"os"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 
 	"github.com/panxiao81/e5renew/internal/db"
@@ -67,3 +70,46 @@ func TestNewMigrationDriver_Postgres(t *testing.T) {
 		t.Fatalf("expected *postgres.Postgres driver, got %T", driver)
 	}
 }
+
+func TestNewMigrationDriver_DefaultsToMySQL(t *testing.T) {
+	dbConn, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create sqlmock DB: %v", err)
+	}
+	defer dbConn.Close()
+	defer func() {
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("unmet sqlmock expectations: %v", err)
+		}
+	}()
+
+	mock.ExpectQuery(`SELECT DATABASE\(\)`).WillReturnRows(sqlmock.NewRows([]string{"DATABASE()"}).AddRow("e5renew_test"))
+	mock.ExpectQuery(`SELECT GET_LOCK\(\?, 10\)`).WithArgs(sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"GET_LOCK(?, 10)"}).AddRow(1))
+	mock.ExpectQuery(`SHOW TABLES LIKE 'schema_migrations'`).WillReturnRows(sqlmock.NewRows([]string{"Tables_in_e5renew_test (schema_migrations)"}))
+	mock.ExpectExec("CREATE TABLE `schema_migrations`").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SELECT RELEASE_LOCK\(\?\)`).WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	driver, err := newMigrationDriver(db.EngineMySQL, dbConn)
+	if err != nil {
+		t.Fatalf("expected mysql migrate driver without error, got %v", err)
+	}
+
+	if _, ok := driver.(*mysql.Mysql); !ok {
+		t.Fatalf("expected *mysql.Mysql driver, got %T", driver)
+	}
+
+	mock.ExpectQuery(`SELECT DATABASE\(\)`).WillReturnRows(sqlmock.NewRows([]string{"DATABASE()"}).AddRow("e5renew_test"))
+	mock.ExpectQuery(`SELECT GET_LOCK\(\?, 10\)`).WithArgs(sqlmock.AnyArg()).WillReturnRows(sqlmock.NewRows([]string{"GET_LOCK(?, 10)"}).AddRow(1))
+	mock.ExpectQuery(`SHOW TABLES LIKE 'schema_migrations'`).WillReturnRows(sqlmock.NewRows([]string{"Tables_in_e5renew_test (schema_migrations)"}))
+	mock.ExpectExec("CREATE TABLE `schema_migrations`").WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SELECT RELEASE_LOCK\(\?\)`).WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	driver, err = newMigrationDriver(db.Engine("unknown"), dbConn)
+	if err != nil {
+		t.Fatalf("expected default mysql migrate driver without error, got %v", err)
+	}
+
+	if _, ok := driver.(*mysql.Mysql); !ok {
+		t.Fatalf("expected default *mysql.Mysql driver, got %T", driver)
+	}
+}
+
+var _ *sql.DB

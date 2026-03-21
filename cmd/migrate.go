@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -159,6 +160,15 @@ var migrateVersionCmd = &cobra.Command{
 	},
 }
 
+var openMigrationDB = db.NewDBWithEngine
+var newMySQLMigrationDriver = func(conn *sql.DB) (database.Driver, error) {
+	return mysql.WithInstance(conn, &mysql.Config{})
+}
+var newPostgresMigrationDriver = func(conn *sql.DB) (database.Driver, error) {
+	return postgres.WithInstance(conn, &postgres.Config{})
+}
+var newMigratorWithDatabaseInstance = migrate.NewWithDatabaseInstance
+
 func getMigrator() (*migrate.Migrate, error) {
 	dsn := viper.GetString("database.dsn")
 	if dsn == "" {
@@ -166,7 +176,7 @@ func getMigrator() (*migrate.Migrate, error) {
 	}
 
 	engine := db.ParseEngine(viper.GetString("database.engine"))
-	sqlDB, err := db.NewDBWithEngine(engine, dsn)
+	sqlDB, err := openMigrationDB(engine, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -180,7 +190,7 @@ func getMigrator() (*migrate.Migrate, error) {
 	case db.EnginePostgres:
 		driverName = "postgres"
 		migrationSource = fmt.Sprintf("file://%s", migrationsPath(engine))
-		driver, err = postgres.WithInstance(sqlDB, &postgres.Config{})
+		driver, err = newPostgresMigrationDriver(sqlDB)
 		if err != nil {
 			sqlDB.Close()
 			return nil, fmt.Errorf("failed to create PostgreSQL driver: %w", err)
@@ -188,14 +198,14 @@ func getMigrator() (*migrate.Migrate, error) {
 	default:
 		driverName = "mysql"
 		migrationSource = fmt.Sprintf("file://%s", migrationsPath(engine))
-		driver, err = mysql.WithInstance(sqlDB, &mysql.Config{})
+		driver, err = newMySQLMigrationDriver(sqlDB)
 		if err != nil {
 			sqlDB.Close()
 			return nil, fmt.Errorf("failed to create MySQL driver: %w", err)
 		}
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
+	m, err := newMigratorWithDatabaseInstance(
 		migrationSource,
 		driverName,
 		driver,

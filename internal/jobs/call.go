@@ -6,8 +6,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,13 +18,25 @@ import (
 	"github.com/panxiao81/e5renew/internal/services"
 )
 
+var newClientSecretCredential = func(tenantID, clientID, clientSecret string) (azcore.TokenCredential, error) {
+	return azidentity.NewClientSecretCredential(tenantID, clientID, clientSecret, nil)
+}
+
+var newGraphServiceClientWithCredentials = func(credential azcore.TokenCredential, scopes []string) (*msgraphsdkgo.GraphServiceClient, error) {
+	return msgraphsdkgo.NewGraphServiceClientWithCredentials(credential, scopes)
+}
+
+var getGraphUsers = func(ctx context.Context, client *msgraphsdkgo.GraphServiceClient) (models.UserCollectionResponseable, error) {
+	return client.Users().Get(ctx, nil)
+}
+
 func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services.APILogService, logger *slog.Logger) (map[string]int, error) {
 	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
 	ctx, span := tracer.Start(ctx, "GetUsersAndMessagesClientScope")
 	defer span.End()
 
 	start := time.Now()
-	
+
 	logger.Info("🔄 Starting E5 renewal job - Graph API client scope call",
 		"job", "GetUsersAndMessagesClientScope",
 		"startTime", start.Format(time.RFC3339),
@@ -30,11 +44,10 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 
 	// Create credentials with tracing
 	ctx, credSpan := tracer.Start(ctx, "create_credentials")
-	cred, err := azidentity.NewClientSecretCredential(
+	cred, err := newClientSecretCredential(
 		viper.GetString("azureAD.tenant"),
 		viper.GetString("azureAD.clientID"),
 		viper.GetString("azureAD.clientSecret"),
-		nil,
 	)
 	if err != nil {
 		credSpan.RecordError(err)
@@ -47,7 +60,7 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 		return nil, fmt.Errorf("failed to create Azure AD client secret credentials: %w", err)
 	}
 	credSpan.End()
-	
+
 	logger.Debug("✅ Azure AD credentials created successfully",
 		"job", "GetUsersAndMessagesClientScope",
 		"step", "credential_creation")
@@ -56,7 +69,7 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 	ctx, clientSpan := tracer.Start(ctx, "create_graph_client")
 
 	// Create Graph client - API logging is handled manually below due to SDK limitations
-	client, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(cred, []string{"https://graph.microsoft.com/.default"})
+	client, err := newGraphServiceClientWithCredentials(cred, []string{"https://graph.microsoft.com/.default"})
 	if err != nil {
 		clientSpan.RecordError(err)
 		clientSpan.End()
@@ -68,7 +81,7 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 		return nil, fmt.Errorf("failed to create Microsoft Graph client: %w", err)
 	}
 	clientSpan.End()
-	
+
 	logger.Debug("✅ Microsoft Graph client created successfully",
 		"job", "GetUsersAndMessagesClientScope",
 		"step", "graph_client_creation")
@@ -82,14 +95,14 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 
 	// Record start time for API logging
 	apiStartTime := time.Now()
-	
+
 	logger.Info("📞 Calling Microsoft Graph API - Users endpoint",
 		"job", "GetUsersAndMessagesClientScope",
 		"endpoint", "users",
 		"method", "GET",
 		"step", "api_call")
 
-	user, err := client.Users().Get(ctx, nil)
+	user, err := getGraphUsers(ctx, client)
 
 	// Log the API call
 	apiEndTime := time.Now()
@@ -142,7 +155,7 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 		attribute.Int("graph.api.users.count", userCount),
 	)
 	usersSpan.End()
-	
+
 	logger.Info("✅ Microsoft Graph API call successful",
 		"job", "GetUsersAndMessagesClientScope",
 		"endpoint", "users",

@@ -15,6 +15,24 @@ import (
 	"github.com/panxiao81/e5renew/internal/middleware"
 )
 
+var processUserMailActivity = func(s *MailService, ctx context.Context, userID string) error {
+	return s.ProcessUserMailActivity(ctx, userID)
+}
+var logGraphAPICallHook = func(s *MailService, ctx context.Context, userID, endpoint, method string, startTime, endTime time.Time, duration time.Duration, success bool, err error) {
+	s.logGraphAPICall(ctx, userID, endpoint, method, startTime, endTime, duration, success, err)
+}
+
+var newMailGraphClient = func(credential *DatabaseTokenCredential) (*msgraphsdkgo.GraphServiceClient, error) {
+	return msgraphsdkgo.NewGraphServiceClientWithCredentials(
+		credential,
+		[]string{"https://graph.microsoft.com/Mail.Read"},
+	)
+}
+
+var getMailMessages = func(ctx context.Context, client *msgraphsdkgo.GraphServiceClient) (models.MessageCollectionResponseable, error) {
+	return client.Me().Messages().Get(ctx, nil)
+}
+
 // MailMessage represents a simplified Microsoft Graph mail message
 type MailMessage struct {
 	ID         string `json:"id"`
@@ -67,10 +85,7 @@ func (s *MailService) GetUserMail(ctx context.Context, userID string) (*MailResp
 	credential := NewDatabaseTokenCredential(userID, s.userTokenService, s.logger)
 
 	// Create Graph client with custom credential
-	graphServiceClient, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(
-		credential,
-		[]string{"https://graph.microsoft.com/Mail.Read"},
-	)
+	graphServiceClient, err := newMailGraphClient(credential)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("error", "failed_to_create_graph_client"))
@@ -83,12 +98,12 @@ func (s *MailService) GetUserMail(ctx context.Context, userID string) (*MailResp
 	span.SetAttributes(attribute.String("graph_operation", "me.messages.get"))
 
 	// Make request to Microsoft Graph API
-	messages, err := graphServiceClient.Me().Messages().Get(ctx, nil)
+	messages, err := getMailMessages(ctx, graphServiceClient)
 
 	// Log the API call manually for now
 	apiEndTime := time.Now()
 	apiDuration := apiEndTime.Sub(apiStartTime)
-	s.logGraphAPICall(ctx, userID, "me/messages", "GET", apiStartTime, apiEndTime, apiDuration, err == nil, err)
+	logGraphAPICallHook(s, ctx, userID, "me/messages", "GET", apiStartTime, apiEndTime, apiDuration, err == nil, err)
 
 	if err != nil {
 		span.RecordError(err)
@@ -276,7 +291,7 @@ func (s *MailService) ProcessAllUserMailActivity(ctx context.Context) error {
 		_, userSpan := tracer.Start(ctx, "ProcessUserMailActivity")
 		userSpan.SetAttributes(attribute.String("user_id", userID))
 
-		if err := s.ProcessUserMailActivity(ctx, userID); err != nil {
+		if err := processUserMailActivity(s, ctx, userID); err != nil {
 			errorCount++
 			userSpan.RecordError(err)
 			userSpan.SetAttributes(attribute.Bool("success", false))

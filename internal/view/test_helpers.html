@@ -1,0 +1,11 @@
+{{define "title"}}Helper Test{{end}}
+
+{{define "content"}}
+<div id="safe">{{safeHTML "<strong>safe</strong>"}}</div>
+<div id="dict-valid">{{index (dict "Key" "value") "Key"}}</div>
+<div id="dict-odd">{{printf "%v" (dict "Key")}}</div>
+<div id="dict-bad-key">{{printf "%v" (dict 1 "value")}}</div>
+<div id="t-default">{{tDefault "missing.translation" "Fallback text"}}</div>
+{{end}}
+
+{{template "layout.html" .}}

@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/i18n"
+	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/view"
 )
 
@@ -213,8 +216,8 @@ func TestHomeController_TriggerMailAPIBranches(t *testing.T) {
 		status int
 	}{
 		{
-			name: "missing_claims",
-			seed: func(ctx context.Context) { sm.Put(ctx, "user", oidc.IDToken{Subject: "u"}) },
+			name:   "missing_claims",
+			seed:   func(ctx context.Context) { sm.Put(ctx, "user", oidc.IDToken{Subject: "u"}) },
 			status: http.StatusUnauthorized,
 		},
 		{
@@ -251,6 +254,97 @@ func TestHomeController_TriggerMailAPIBranches(t *testing.T) {
 	}
 }
 
+func TestHomeController_UserSuccessRendersTokenState(t *testing.T) {
+	controller, sm := setupHomeController(t)
+	originalHasUserToken := hasUserTokenForHome
+	originalGetUserToken := getUserTokenForHome
+	t.Cleanup(func() {
+		hasUserTokenForHome = originalHasUserToken
+		getUserTokenForHome = originalGetUserToken
+	})
+
+	expiry := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
+	hasUserTokenForHome = func(s *services.UserTokenService, ctx context.Context, userID string) (bool, error) {
+		return true, nil
+	}
+	getUserTokenForHome = func(s *services.UserTokenService, ctx context.Context, userID string) (*oauth2.Token, error) {
+		return &oauth2.Token{AccessToken: "access", Expiry: expiry}, nil
+	}
+	controller.userTokenService = &services.UserTokenService{}
+
+	req := httptest.NewRequest(http.MethodGet, "/user", nil)
+	w := httptest.NewRecorder()
+	h := sm.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sm.Put(r.Context(), "user", oidc.IDToken{Subject: "u"})
+		sm.Put(r.Context(), "claims", environment.AzureADClaims{Name: "Test User", PreferredUsername: "test@example.com", Email: "test@example.com"})
+		sm.Put(r.Context(), "token", oauth2.Token{AccessToken: "token"})
+		controller.User(w, r)
+	}))
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%q", http.StatusOK, w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !containsAll(body, "Test User", "Authorized", expiry.Format("2006-01-02 15:04:05")) {
+		t.Fatalf("unexpected body %q", body)
+	}
+}
+
+func TestHomeController_TriggerMailAPIFullBranches(t *testing.T) {
+	originalHasUserToken := hasUserTokenForHome
+	originalProcess := processUserMailActivityForHome
+	t.Cleanup(func() {
+		hasUserTokenForHome = originalHasUserToken
+		processUserMailActivityForHome = originalProcess
+	})
+
+	tests := []struct {
+		name           string
+		hasToken       bool
+		hasTokenErr    error
+		processErr     error
+		wantStatus     int
+		wantBodySubstr string
+	}{
+		{name: "token check failure", hasTokenErr: context.Canceled, wantStatus: http.StatusInternalServerError, wantBodySubstr: "token_check_failed"},
+		{name: "missing user token", hasToken: false, wantStatus: http.StatusBadRequest, wantBodySubstr: "No personal mail access token found"},
+		{name: "mail processing failure", hasToken: true, processErr: context.DeadlineExceeded, wantStatus: http.StatusInternalServerError, wantBodySubstr: "mail_processing_failed"},
+		{name: "success", hasToken: true, wantStatus: http.StatusOK, wantBodySubstr: "Mail API call completed successfully"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			controller, sm := setupHomeController(t)
+			controller.userTokenService = &services.UserTokenService{}
+			controller.mailService = &services.MailService{}
+
+			hasUserTokenForHome = func(s *services.UserTokenService, ctx context.Context, userID string) (bool, error) {
+				return tt.hasToken, tt.hasTokenErr
+			}
+			processUserMailActivityForHome = func(s *services.MailService, ctx context.Context, userID string) error {
+				return tt.processErr
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/user/trigger-mail", nil)
+			w := httptest.NewRecorder()
+			h := sm.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				sm.Put(r.Context(), "user", oidc.IDToken{Subject: "u"})
+				sm.Put(r.Context(), "claims", environment.AzureADClaims{Email: "a@example.com"})
+				controller.TriggerMailAPI(w, r)
+			}))
+			h.ServeHTTP(w, req)
+
+			if w.Code != tt.wantStatus {
+				t.Fatalf("expected %d got %d body=%q", tt.wantStatus, w.Code, w.Body.String())
+			}
+			if !strings.Contains(w.Body.String(), tt.wantBodySubstr) {
+				t.Fatalf("expected body to contain %q, got %q", tt.wantBodySubstr, w.Body.String())
+			}
+		})
+	}
+}
+
 func TestHomeController_About(t *testing.T) {
 	controller, _ := setupHomeController(t)
 
@@ -258,4 +352,13 @@ func TestHomeController_About(t *testing.T) {
 	if result == "" {
 		t.Fatal("expected non-empty about string")
 	}
+}
+
+func containsAll(s string, parts ...string) bool {
+	for _, part := range parts {
+		if !strings.Contains(s, part) {
+			return false
+		}
+	}
+	return true
 }

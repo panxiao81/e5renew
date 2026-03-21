@@ -25,6 +25,18 @@ type HomeController struct {
 	errorHandler     *utils.ErrorHandler
 }
 
+var hasUserTokenForHome = func(s *services.UserTokenService, ctx context.Context, userID string) (bool, error) {
+	return s.HasUserToken(ctx, userID)
+}
+
+var getUserTokenForHome = func(s *services.UserTokenService, ctx context.Context, userID string) (*oauth2.Token, error) {
+	return s.GetUserToken(ctx, userID)
+}
+
+var processUserMailActivityForHome = func(s *services.MailService, ctx context.Context, userID string) error {
+	return s.ProcessUserMailActivity(ctx, userID)
+}
+
 // NewHomeController creates a new instance of HomeController.
 func NewHomeController(app environment.Application, userTokenService *services.UserTokenService, mailService *services.MailService) *HomeController {
 	return &HomeController{
@@ -117,11 +129,11 @@ func (hc *HomeController) User(w http.ResponseWriter, r *http.Request) {
 	userID := claims.Email
 	hasUserToken := false
 	if hc.userTokenService != nil {
-		hasUserToken, _ = hc.userTokenService.HasUserToken(r.Context(), userID)
+		hasUserToken, _ = hasUserTokenForHome(hc.userTokenService, r.Context(), userID)
 	}
 	var userTokenExpiry *time.Time
 	if hasUserToken && hc.userTokenService != nil {
-		userToken, err := hc.userTokenService.GetUserToken(r.Context(), userID)
+		userToken, err := getUserTokenForHome(hc.userTokenService, r.Context(), userID)
 		if err == nil {
 			userTokenExpiry = &userToken.Expiry
 		}
@@ -184,7 +196,7 @@ func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Check if user has a token
-	hasUserToken, err := hc.userTokenService.HasUserToken(ctx, userID)
+	hasUserToken, err := hasUserTokenForHome(hc.userTokenService, ctx, userID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetAttributes(attribute.String("error", "failed_to_check_user_token"))
@@ -206,7 +218,7 @@ func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request)
 
 	// Trigger mail API call
 	startTime := time.Now()
-	err = hc.mailService.ProcessUserMailActivity(ctx, userID)
+	err = processUserMailActivityForHome(hc.mailService, ctx, userID)
 	duration := time.Since(startTime)
 
 	span.SetAttributes(

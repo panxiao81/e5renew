@@ -170,3 +170,26 @@ func TestWithTxPreservesEngine(t *testing.T) {
 	txDB := queries.WithTx(tx)
 	require.NotNil(t, txDB)
 }
+
+func TestNewDBWithEngine_Constructors(t *testing.T) {
+	t.Run("mysql constructor returns db handle", func(t *testing.T) {
+		dbConn, err := NewDBWithEngine(EngineMySQL, "user:pass@tcp(127.0.0.1:3306)/dbname")
+		require.NoError(t, err)
+		require.NotNil(t, dbConn)
+		require.NoError(t, dbConn.Close())
+	})
+
+	t.Run("postgres constructor returns db handle", func(t *testing.T) {
+		dbConn, err := NewDBWithEngine(EnginePostgres, "postgres://user:pass@127.0.0.1:5432/dbname?sslmode=disable")
+		require.NoError(t, err)
+		require.NotNil(t, dbConn)
+		require.NoError(t, dbConn.Close())
+	})
+
+	t.Run("default constructor uses mysql contract", func(t *testing.T) {
+		dbConn, err := NewDB("user:pass@tcp(127.0.0.1:3306)/dbname")
+		require.NoError(t, err)
+		require.NotNil(t, dbConn)
+		require.NoError(t, dbConn.Close())
+	})
+}
