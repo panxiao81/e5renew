@@ -18,6 +18,7 @@ import (
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/i18n"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/view"
 )
@@ -43,7 +44,7 @@ func setupLogsController(t *testing.T) (*LogsController, *scs.SessionManager, sq
 		SessionManager: scs.New(),
 	}
 
-	service := services.NewAPILogService(db.New(sqlDB), app.Logger)
+	service := services.NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), app.Logger)
 	controller := NewLogsController(app, service)
 
 	cleanup := func() {

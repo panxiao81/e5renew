@@ -115,6 +115,88 @@ func TestNewWithEngine_UsesMySQLQueries(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestStoreConstructorsUseRequestedEngine(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer sqlDB.Close()
+
+	now := time.Now().UTC()
+
+	mock.ExpectExec(regexp.QuoteMeta("values (?, ?, ?, ?, ?)")).
+		WithArgs("u1", "a", "r", now, "Bearer").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	_, err = newUserTokenStore(EngineMySQL, sqlDB).CreateUserTokens(context.Background(), CreateUserTokensParams{
+		UserID: "u1", AccessToken: "a", RefreshToken: "r", Expiry: now, TokenType: "Bearer",
+	})
+	require.NoError(t, err)
+
+	statsRows := sqlmock.NewRows([]string{"total_requests", "successful_requests", "failed_requests", "avg_duration_ms", "min_duration_ms", "max_duration_ms"}).
+		AddRow(int64(1), int64(1), int64(0), []byte("10.5"), int32(5), int32(15))
+	mock.ExpectQuery(`(?is)count\(\*\).*from api_logs`).WithArgs(now.Add(-time.Hour), now).WillReturnRows(statsRows)
+	stats, err := newAPILogStore(EngineMySQL, sqlDB).GetAPILogStats(context.Background(), GetAPILogStatsParams{RequestTime: now.Add(-time.Hour), RequestTime_2: now})
+	require.NoError(t, err)
+	require.Equal(t, 10.5, stats.AvgDurationMs)
+
+	health := NewHealthStore(EngineMySQL, &statsPingDB{stats: sql.DBStats{OpenConnections: 3}})
+	healthStats, err := health.Stats()
+	require.NoError(t, err)
+	require.Equal(t, 3, healthStats.OpenConnections)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNew_DefaultsToPostgresAPILogStore(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer sqlDB.Close()
+
+	now := time.Now().UTC()
+	statsRows := sqlmock.NewRows([]string{"total_requests", "successful_requests", "failed_requests", "avg_duration_ms", "min_duration_ms", "max_duration_ms"}).
+		AddRow(int64(2), int64(1), int64(1), float64(12.5), int32(5), int32(20))
+	mock.ExpectQuery(`(?is)count\(\*\).*from api_logs`).WithArgs(now.Add(-time.Hour), now).WillReturnRows(statsRows)
+
+	stats, err := New(sqlDB).GetAPILogStats(context.Background(), GetAPILogStatsParams{RequestTime: now.Add(-time.Hour), RequestTime_2: now})
+	require.NoError(t, err)
+	require.Equal(t, 12.5, stats.AvgDurationMs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewQueriesAliasesPreserveBehavior(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	defer sqlDB.Close()
+
+	now := time.Now().UTC()
+	statsRows := sqlmock.NewRows([]string{"total_requests", "successful_requests", "failed_requests", "avg_duration_ms", "min_duration_ms", "max_duration_ms"}).
+		AddRow(int64(2), int64(1), int64(1), float64(15.5), int32(5), int32(20))
+	mock.ExpectQuery(`(?is)count\(\*\).*from api_logs`).WithArgs(now.Add(-time.Hour), now).WillReturnRows(statsRows)
+
+	stats, err := NewQueries(sqlDB).GetAPILogStats(context.Background(), GetAPILogStatsParams{RequestTime: now.Add(-time.Hour), RequestTime_2: now})
+	require.NoError(t, err)
+	require.Equal(t, 15.5, stats.AvgDurationMs)
+
+	mock.ExpectExec(regexp.QuoteMeta("values (?, ?, ?, ?, ?)")).
+		WithArgs("u1", "a", "r", now, "Bearer").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	_, err = NewQueriesWithEngine(EngineMySQL, sqlDB).CreateUserTokens(context.Background(), CreateUserTokensParams{
+		UserID: "u1", AccessToken: "a", RefreshToken: "r", Expiry: now, TokenType: "Bearer",
+	})
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewHealthStore_OptionalMethodErrors(t *testing.T) {
+	health := NewHealthStore(EngineMySQL, &dbWithoutStatsPing{})
+
+	err := health.PingContext(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not implement PingContext")
+
+	_, err = health.Stats()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not expose Stats")
+}
+
 func TestNewWithEngine_ExecErrorIsPropagated(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
@@ -169,6 +251,11 @@ func TestWithTxPreservesEngine(t *testing.T) {
 
 	txDB := queries.WithTx(tx)
 	require.NotNil(t, txDB)
+	require.IsType(t, &Queries{}, txDB)
+	require.Equal(t, EngineMySQL, txDB.engine)
+	require.NotNil(t, txDB.apilog)
+	require.NotNil(t, txDB.tokens)
+	require.NotNil(t, txDB.health)
 }
 
 func TestNewDBWithEngine_Constructors(t *testing.T) {

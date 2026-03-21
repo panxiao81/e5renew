@@ -8,10 +8,54 @@ import (
 	"time"
 
 	mydb "github.com/panxiao81/e5renew/internal/db/mysql"
+	pgdb "github.com/panxiao81/e5renew/internal/db/postgres"
 )
+
+type healthStore struct {
+	db DBTX
+}
 
 type mysqlAdapter struct {
 	q *mydb.Queries
+}
+
+func (h *healthStore) PingContext(ctx context.Context) error {
+	pinger, ok := h.db.(interface {
+		PingContext(context.Context) error
+	})
+	if !ok {
+		return fmt.Errorf("underlying DB does not implement PingContext")
+	}
+	return pinger.PingContext(ctx)
+}
+
+func (h *healthStore) Stats() (sql.DBStats, error) {
+	statser, ok := h.db.(interface {
+		Stats() sql.DBStats
+	})
+	if !ok {
+		return sql.DBStats{}, fmt.Errorf("underlying DB does not expose Stats")
+	}
+	return statser.Stats(), nil
+}
+
+func newStores(engine Engine, db DBTX) (apiLogStore, userTokenStore, HealthStore) {
+	var apilog apiLogStore
+	var tokens userTokenStore
+
+	switch engine {
+	case EngineMySQL:
+		mysqlQueries := mydb.New(db)
+		adapter := &mysqlAdapter{q: mysqlQueries}
+		apilog = adapter
+		tokens = adapter
+	default:
+		pgQueries := pgdb.New(db)
+		apilog = pgQueries
+		tokens = pgQueries
+	}
+
+	return apilog, tokens, &healthStore{db: db}
 }
 
 func (m *mysqlAdapter) CreateAPILog(ctx context.Context, arg CreateAPILogParams) (sql.Result, error) {

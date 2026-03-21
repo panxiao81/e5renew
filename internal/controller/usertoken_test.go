@@ -20,6 +20,7 @@ import (
 
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/view"
 )
@@ -52,7 +53,7 @@ func setupUserTokenController(t *testing.T, tokenURL string) (*UserTokenControll
 		SessionManager: sessions,
 	}
 
-	service := services.NewUserTokenService(db.New(sqlDB), &oauth2.Config{}, app.Logger, encryption)
+	service := services.NewUserTokenService(repository.NewUserTokenRepositoryWithEngine(db.EnginePostgres, sqlDB), &oauth2.Config{}, app.Logger, encryption)
 	auth := environment.Authenticator{Config: oauth2.Config{
 		ClientID:     "client-id",
 		ClientSecret: "client-secret",

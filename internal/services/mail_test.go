@@ -18,6 +18,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/db"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 func TestMailHelpers(t *testing.T) {
@@ -87,8 +88,8 @@ func makeMailServiceForErrorPath(t *testing.T) (*MailService, sqlmock.Sqlmock, f
 	encryption, err := NewEncryptionService()
 	require.NoError(t, err)
 
-	userTokens := NewUserTokenService(db.New(sqlDB), &oauth2.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), encryption)
-	apiSvc := NewAPILogService(db.New(sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	userTokens := NewUserTokenService(repository.NewUserTokenRepositoryWithEngine(db.EnginePostgres, sqlDB), &oauth2.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), encryption)
+	apiSvc := NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	svc := NewMailService(userTokens, apiSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	cleanup := func() {
@@ -106,7 +107,7 @@ func TestMailServiceLogGraphAPICallAsync(t *testing.T) {
 	}
 	defer sqlDB.Close()
 
-	apiSvc := NewAPILogService(db.New(sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	apiSvc := NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	svc := &MailService{
 		apiLogService: apiSvc,
 		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),

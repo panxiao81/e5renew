@@ -21,6 +21,7 @@ import (
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/i18n"
 	appmiddleware "github.com/panxiao81/e5renew/internal/middleware"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/view"
 )
@@ -150,7 +151,7 @@ func main() {
 
 	home := controller.NewHomeController(app, nil, nil)
 	health := controller.NewHealthController(app)
-	apiLogService := services.NewAPILogService(frontendAPILogStore{}, logger)
+	apiLogService := services.NewAPILogService(repository.NewAPILogRepository(frontendAPILogStore{}), logger)
 	logs := controller.NewLogsController(app, apiLogService)
 
 	r := chi.NewRouter()

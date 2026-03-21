@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/db"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 type staticTokenSource struct {
@@ -39,7 +40,7 @@ func newTokenSourceTestService(t *testing.T) (*UserTokenService, sqlmock.Sqlmock
 	require.NoError(t, err)
 
 	service := NewUserTokenService(
-		db.New(sqlDB),
+		repository.NewUserTokenRepositoryWithEngine(db.EnginePostgres, sqlDB),
 		&oauth2.Config{},
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		encryption,

@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 type fakeHealthDB struct {
@@ -26,39 +26,6 @@ type fakeHealthDB struct {
 	statsErr error
 }
 
-func (f fakeHealthDB) CreateAPILog(context.Context, db.CreateAPILogParams) (sql.Result, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) DeleteOldAPILogs(context.Context, time.Time) error { return nil }
-func (f fakeHealthDB) GetAPILogStats(context.Context, db.GetAPILogStatsParams) (db.GetAPILogStatsRow, error) {
-	return db.GetAPILogStatsRow{}, nil
-}
-func (f fakeHealthDB) GetAPILogStatsByEndpoint(context.Context, db.GetAPILogStatsByEndpointParams) ([]db.GetAPILogStatsByEndpointRow, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) GetAPILogs(context.Context, db.GetAPILogsParams) ([]db.ApiLog, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) GetAPILogsByJobType(context.Context, db.GetAPILogsByJobTypeParams) ([]db.ApiLog, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) GetAPILogsByTimeRange(context.Context, db.GetAPILogsByTimeRangeParams) ([]db.ApiLog, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) GetAPILogsByUser(context.Context, db.GetAPILogsByUserParams) ([]db.ApiLog, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) CreateUserTokens(context.Context, db.CreateUserTokensParams) (sql.Result, error) {
-	return nil, nil
-}
-func (f fakeHealthDB) DeleteUserTokens(context.Context, string) error { return nil }
-func (f fakeHealthDB) GetUserToken(context.Context, string) (db.UserToken, error) {
-	return db.UserToken{}, nil
-}
-func (f fakeHealthDB) ListUserTokens(context.Context) ([]db.UserToken, error) { return nil, nil }
-func (f fakeHealthDB) UpdateUserTokens(context.Context, db.UpdateUserTokensParams) (sql.Result, error) {
-	return nil, nil
-}
 func (f fakeHealthDB) PingContext(context.Context) error { return f.pingErr }
 func (f fakeHealthDB) Stats() (sql.DBStats, error) {
 	if f.statsErr != nil {
@@ -66,7 +33,6 @@ func (f fakeHealthDB) Stats() (sql.DBStats, error) {
 	}
 	return f.stats, nil
 }
-func (f fakeHealthDB) WithTx(*sql.Tx) db.Database { return f }
 
 func setupHealthController(t *testing.T, issuerURL string) (*HealthController, func()) {
 	t.Helper()
@@ -81,7 +47,7 @@ func setupHealthController(t *testing.T, issuerURL string) (*HealthController, f
 	viper.Set("azureAD.redirectURL", "https://localhost/oauth2/callback")
 	viper.Set("azureAD.issuer", issuerURL)
 
-	app := environment.Application{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), DB: db.New(sqlDB)}
+	app := environment.Application{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), DB: repository.NewHealthRepositoryWithEngine(db.EnginePostgres, sqlDB)}
 	cleanup := func() {
 		mock.ExpectClose()
 		_ = sqlDB.Close()

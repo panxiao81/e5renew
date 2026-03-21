@@ -3,10 +3,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"fmt"
-
-	mydb "github.com/panxiao81/e5renew/internal/db/mysql"
-	pgdb "github.com/panxiao81/e5renew/internal/db/postgres"
 )
 
 type DBTX interface {
@@ -17,54 +13,49 @@ type DBTX interface {
 }
 
 func New(db DBTX) *Queries {
-	return NewWithEngine(EnginePostgres, db)
+	return NewQueries(db)
+}
+
+func NewQueries(db DBTX) *Queries {
+	return NewQueriesWithEngine(EnginePostgres, db)
+}
+
+func newAPILogStore(engine Engine, db DBTX) apiLogStore {
+	apilog, _, _ := newStores(engine, db)
+	return apilog
+}
+
+func newUserTokenStore(engine Engine, db DBTX) userTokenStore {
+	_, tokens, _ := newStores(engine, db)
+	return tokens
+}
+
+func NewHealthStore(engine Engine, db DBTX) HealthStore {
+	_, _, health := newStores(engine, db)
+	return health
 }
 
 func NewWithEngine(engine Engine, db DBTX) *Queries {
-	queries := &Queries{db: db, engine: engine}
+	return NewQueriesWithEngine(engine, db)
+}
 
-	switch engine {
-	case EngineMySQL:
-		mysqlQueries := mydb.New(db)
-		adapter := &mysqlAdapter{q: mysqlQueries}
-		queries.apilog = adapter
-		queries.tokens = adapter
-	default:
-		pgQueries := pgdb.New(db)
-		queries.apilog = pgQueries
-		queries.tokens = pgQueries
-	}
-
-	return queries
+func NewQueriesWithEngine(engine Engine, db DBTX) *Queries {
+	apilog, tokens, health := newStores(engine, db)
+	return &Queries{db: db, engine: engine, apilog: apilog, tokens: tokens, health: health}
 }
 
 type Queries struct {
 	db     DBTX
 	engine Engine
-	apilog APILogStore
-	tokens UserTokenStore
+	apilog apiLogStore
+	tokens userTokenStore
+	health HealthStore
 }
 
-func (q *Queries) PingContext(ctx context.Context) error {
-	pinger, ok := q.db.(interface {
-		PingContext(context.Context) error
-	})
-	if !ok {
-		return fmt.Errorf("underlying DB does not implement PingContext")
-	}
-	return pinger.PingContext(ctx)
-}
+func (q *Queries) PingContext(ctx context.Context) error { return q.health.PingContext(ctx) }
 
-func (q *Queries) Stats() (sql.DBStats, error) {
-	statser, ok := q.db.(interface {
-		Stats() sql.DBStats
-	})
-	if !ok {
-		return sql.DBStats{}, fmt.Errorf("underlying DB does not expose Stats")
-	}
-	return statser.Stats(), nil
-}
+func (q *Queries) Stats() (sql.DBStats, error) { return q.health.Stats() }
 
-func (q *Queries) WithTx(tx *sql.Tx) Database {
-	return NewWithEngine(q.engine, tx)
+func (q *Queries) WithTx(tx *sql.Tx) *Queries {
+	return NewQueriesWithEngine(q.engine, tx)
 }

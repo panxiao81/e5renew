@@ -10,21 +10,21 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/oauth2"
 
-	"github.com/panxiao81/e5renew/internal/db"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 // UserTokenService handles user OAuth2 token management
 type UserTokenService struct {
-	db           db.UserTokenStore
+	repo         repository.UserTokenRepository
 	oauth2Config *oauth2.Config
 	logger       *slog.Logger
 	encryption   *EncryptionService
 }
 
 // NewUserTokenService creates a new UserTokenService instance
-func NewUserTokenService(database db.UserTokenStore, config *oauth2.Config, logger *slog.Logger, encryption *EncryptionService) *UserTokenService {
+func NewUserTokenService(repo repository.UserTokenRepository, config *oauth2.Config, logger *slog.Logger, encryption *EncryptionService) *UserTokenService {
 	return &UserTokenService{
-		db:           database,
+		repo:         repo,
 		oauth2Config: config,
 		logger:       logger,
 		encryption:   encryption,
@@ -66,10 +66,10 @@ func (s *UserTokenService) SaveUserToken(ctx context.Context, userID string, tok
 	}
 
 	// Check if token already exists
-	_, err = s.db.GetUserToken(ctx, userID)
+	_, err = s.repo.GetByUserID(ctx, userID)
 	if err != nil {
 		// Token doesn't exist, create new one
-		_, err = s.db.CreateUserTokens(ctx, db.CreateUserTokensParams{
+		err = s.repo.Create(ctx, repository.UserTokenRecord{
 			UserID:       userID,
 			AccessToken:  encryptedAccessToken,
 			RefreshToken: encryptedRefreshToken,
@@ -83,7 +83,7 @@ func (s *UserTokenService) SaveUserToken(ctx context.Context, userID string, tok
 		s.logger.Info("Created new user token", "userID", userID)
 	} else {
 		// Token exists, update it
-		_, err = s.db.UpdateUserTokens(ctx, db.UpdateUserTokensParams{
+		err = s.repo.Update(ctx, repository.UserTokenRecord{
 			AccessToken:  encryptedAccessToken,
 			RefreshToken: encryptedRefreshToken,
 			Expiry:       token.Expiry,
@@ -109,7 +109,7 @@ func (s *UserTokenService) GetUserToken(ctx context.Context, userID string) (*oa
 
 	span.SetAttributes(attribute.String("user_id", userID))
 
-	storedToken, err := s.db.GetUserToken(ctx, userID)
+	storedToken, err := s.repo.GetByUserID(ctx, userID)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get user token: %w", err)
@@ -170,7 +170,7 @@ func (s *UserTokenService) UpdateUserToken(ctx context.Context, userID string, t
 		return fmt.Errorf("failed to encrypt refresh token: %w", err)
 	}
 
-	_, err = s.db.UpdateUserTokens(ctx, db.UpdateUserTokensParams{
+	err = s.repo.Update(ctx, repository.UserTokenRecord{
 		AccessToken:  encryptedAccessToken,
 		RefreshToken: encryptedRefreshToken,
 		Expiry:       token.Expiry,
@@ -192,7 +192,7 @@ func (s *UserTokenService) GetAllUserIDs(ctx context.Context) ([]string, error) 
 	ctx, span := tracer.Start(ctx, "GetAllUserIDs")
 	defer span.End()
 
-	tokens, err := s.db.ListUserTokens(ctx)
+	tokens, err := s.repo.List(ctx)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to list user tokens: %w", err)
@@ -215,7 +215,7 @@ func (s *UserTokenService) DeleteUserToken(ctx context.Context, userID string) e
 
 	span.SetAttributes(attribute.String("user_id", userID))
 
-	err := s.db.DeleteUserTokens(ctx, userID)
+	err := s.repo.DeleteByUserID(ctx, userID)
 	if err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("failed to delete user token: %w", err)
@@ -233,7 +233,7 @@ func (s *UserTokenService) HasUserToken(ctx context.Context, userID string) (boo
 
 	span.SetAttributes(attribute.String("user_id", userID))
 
-	_, err := s.db.GetUserToken(ctx, userID)
+	_, err := s.repo.GetByUserID(ctx, userID)
 	if err != nil {
 		// Token doesn't exist
 		return false, nil

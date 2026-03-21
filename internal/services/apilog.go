@@ -12,6 +12,7 @@ import (
 
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/middleware"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 // APILogEntry represents a logged API call
@@ -51,14 +52,14 @@ type APILogEndpointStats struct {
 
 // APILogService handles API log operations
 type APILogService struct {
-	db     db.APILogStore
+	repo   repository.APILogRepository
 	logger *slog.Logger
 }
 
 // NewAPILogService creates a new APILogService instance
-func NewAPILogService(database db.APILogStore, logger *slog.Logger) *APILogService {
+func NewAPILogService(repo repository.APILogRepository, logger *slog.Logger) *APILogService {
 	return &APILogService{
-		db:     database,
+		repo:   repo,
 		logger: logger,
 	}
 }
@@ -114,7 +115,7 @@ func (s *APILogService) logAPICallInternal(ctx context.Context, entry APILogEntr
 		errorMessage = sql.NullString{String: *entry.ErrorMessage, Valid: true}
 	}
 
-	_, err := s.db.CreateAPILog(ctx, db.CreateAPILogParams{
+	err := s.repo.CreateAPILog(ctx, repository.APILogEntry{
 		UserID:         userID,
 		ApiEndpoint:    entry.APIEndpoint,
 		HttpMethod:     entry.HTTPMethod,
@@ -156,10 +157,7 @@ func (s *APILogService) GetAPILogs(ctx context.Context, limit, offset int32) ([]
 		attribute.Int("offset", int(offset)),
 	)
 
-	logs, err := s.db.GetAPILogs(ctx, db.GetAPILogsParams{
-		Limit:  limit,
-		Offset: offset,
-	})
+	logs, err := s.repo.GetAPILogs(ctx, limit, offset)
 
 	if err != nil {
 		span.RecordError(err)
@@ -167,7 +165,7 @@ func (s *APILogService) GetAPILogs(ctx context.Context, limit, offset int32) ([]
 	}
 
 	span.SetAttributes(attribute.Int("logs_count", len(logs)))
-	return logs, nil
+	return toDBLogs(logs), nil
 }
 
 // GetAPILogsByUser retrieves API logs for a specific user
@@ -182,11 +180,7 @@ func (s *APILogService) GetAPILogsByUser(ctx context.Context, userID string, lim
 		attribute.Int("offset", int(offset)),
 	)
 
-	logs, err := s.db.GetAPILogsByUser(ctx, db.GetAPILogsByUserParams{
-		UserID: sql.NullString{String: userID, Valid: true},
-		Limit:  limit,
-		Offset: offset,
-	})
+	logs, err := s.repo.GetAPILogsByUser(ctx, userID, limit, offset)
 
 	if err != nil {
 		span.RecordError(err)
@@ -194,7 +188,7 @@ func (s *APILogService) GetAPILogsByUser(ctx context.Context, userID string, lim
 	}
 
 	span.SetAttributes(attribute.Int("logs_count", len(logs)))
-	return logs, nil
+	return toDBLogs(logs), nil
 }
 
 // GetAPILogsByTimeRange retrieves API logs within a time range
@@ -210,12 +204,7 @@ func (s *APILogService) GetAPILogsByTimeRange(ctx context.Context, start, end ti
 		attribute.Int("offset", int(offset)),
 	)
 
-	logs, err := s.db.GetAPILogsByTimeRange(ctx, db.GetAPILogsByTimeRangeParams{
-		RequestTime:   start,
-		RequestTime_2: end,
-		Limit:         limit,
-		Offset:        offset,
-	})
+	logs, err := s.repo.GetAPILogsByTimeRange(ctx, start, end, limit, offset)
 
 	if err != nil {
 		span.RecordError(err)
@@ -223,7 +212,7 @@ func (s *APILogService) GetAPILogsByTimeRange(ctx context.Context, start, end ti
 	}
 
 	span.SetAttributes(attribute.Int("logs_count", len(logs)))
-	return logs, nil
+	return toDBLogs(logs), nil
 }
 
 // GetAPILogsByJobType retrieves API logs by job type
@@ -238,11 +227,7 @@ func (s *APILogService) GetAPILogsByJobType(ctx context.Context, jobType string,
 		attribute.Int("offset", int(offset)),
 	)
 
-	logs, err := s.db.GetAPILogsByJobType(ctx, db.GetAPILogsByJobTypeParams{
-		JobType: jobType,
-		Limit:   limit,
-		Offset:  offset,
-	})
+	logs, err := s.repo.GetAPILogsByJobType(ctx, jobType, limit, offset)
 
 	if err != nil {
 		span.RecordError(err)
@@ -250,7 +235,7 @@ func (s *APILogService) GetAPILogsByJobType(ctx context.Context, jobType string,
 	}
 
 	span.SetAttributes(attribute.Int("logs_count", len(logs)))
-	return logs, nil
+	return toDBLogs(logs), nil
 }
 
 // GetAPILogStats retrieves aggregated statistics
@@ -264,10 +249,7 @@ func (s *APILogService) GetAPILogStats(ctx context.Context, start, end time.Time
 		attribute.String("end_time", end.Format(time.RFC3339)),
 	)
 
-	stats, err := s.db.GetAPILogStats(ctx, db.GetAPILogStatsParams{
-		RequestTime:   start,
-		RequestTime_2: end,
-	})
+	stats, err := s.repo.GetAPILogStats(ctx, start, end)
 
 	if err != nil {
 		span.RecordError(err)
@@ -318,10 +300,7 @@ func (s *APILogService) GetAPILogStatsByEndpoint(ctx context.Context, start, end
 		attribute.String("end_time", end.Format(time.RFC3339)),
 	)
 
-	stats, err := s.db.GetAPILogStatsByEndpoint(ctx, db.GetAPILogStatsByEndpointParams{
-		RequestTime:   start,
-		RequestTime_2: end,
-	})
+	stats, err := s.repo.GetAPILogStatsByEndpoint(ctx, start, end)
 
 	if err != nil {
 		span.RecordError(err)
@@ -331,7 +310,7 @@ func (s *APILogService) GetAPILogStatsByEndpoint(ctx context.Context, start, end
 	result := make([]APILogEndpointStats, len(stats))
 	for i, stat := range stats {
 		result[i] = APILogEndpointStats{
-			APIEndpoint:        stat.ApiEndpoint,
+			APIEndpoint:        stat.APIEndpoint,
 			TotalRequests:      stat.TotalRequests,
 			SuccessfulRequests: stat.SuccessfulRequests,
 			FailedRequests:     stat.FailedRequests,
@@ -353,7 +332,7 @@ func (s *APILogService) DeleteOldAPILogs(ctx context.Context, before time.Time) 
 		attribute.String("before_time", before.Format(time.RFC3339)),
 	)
 
-	err := s.db.DeleteOldAPILogs(ctx, before)
+	err := s.repo.DeleteOldAPILogs(ctx, before)
 	if err != nil {
 		span.RecordError(err)
 		return fmt.Errorf("failed to delete old API logs: %w", err)
@@ -361,4 +340,12 @@ func (s *APILogService) DeleteOldAPILogs(ctx context.Context, before time.Time) 
 
 	s.logger.Info("Deleted old API logs", "before", before)
 	return nil
+}
+
+func toDBLogs(logs []repository.APILog) []db.ApiLog {
+	result := make([]db.ApiLog, len(logs))
+	for i, log := range logs {
+		result[i] = db.ApiLog(log)
+	}
+	return result
 }

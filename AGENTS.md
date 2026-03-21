@@ -20,6 +20,7 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
 - `make bench` - Run benchmarks
 - Current repo-wide unit test coverage is around 87% (`coverage.out`, `coverage.html`)
 - Some Postgres integration tests are opt-in and require `E5RENEW_TEST_POSTGRES_DSN`
+- Frontend browser smoke/accessibility tests run with `npm run test:frontend`
 
 ### Code Quality
 - `make fmt` - Format code using go fmt
@@ -82,8 +83,9 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
 
 4. **Database Layer**: SQL-first approach with sqlc
    - MySQL and PostgreSQL database support with connection pooling
-   - Generated queries in `internal/db/`
-   - Models and connection management
+   - Generated queries in `internal/db/mysql/` and `internal/db/postgres/`
+   - Runtime persistence goes through dependency-injected repositories in `internal/repository/`
+   - `internal/db/` now mainly handles connection/bootstrap and sqlc-facing compatibility helpers
 
 5. **Job Scheduling**: Automated API calls
    - Uses `github.com/go-co-op/gocron/v2`
@@ -98,6 +100,7 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
    - `internal/view/`: HTML templates and static files
    - `internal/view/user.html`: User dashboard with token authorization UI
    - Template rendering with layout system and i18n support
+   - Session user context is injected via middleware so shared layouts can render auth-aware nav automatically
 
 7. **Observability**: OpenTelemetry integration
    - `internal/telemetry/`: OpenTelemetry setup and metrics
@@ -131,6 +134,9 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
 ### Important Files
 - `internal/jobs/call.go`: Contains the core Graph API calling logic (with tracing)
 - `internal/jobs/usermail.go`: User mail token processing job
+- `internal/repository/apilog.go`: API log persistence boundary used by services
+- `internal/repository/usertoken.go`: User token persistence boundary used by services
+- `internal/repository/health.go`: Health/ping repository used by app startup and health checks
 - `internal/services/usertoken.go`: User token database operations
 - `internal/services/tokensource.go`: Token refresh with database persistence
 - `internal/services/mail.go`: Microsoft Graph API mail operations
@@ -183,15 +189,18 @@ The application supports personal mail access authorization for enhanced E5 rene
 ## Testing
 - Unit tests for controllers, authentication, and database layers
 - Broad coverage for startup, jobs, services, middleware, templates, telemetry, and migration helpers
+- Frontend Playwright coverage for smoke, mobile, localization, and accessibility checks
 - Configuration validation tests
 - Test setup with proper mocking for external dependencies
 - Comprehensive test coverage for core functionality
 
 ## CI/CD
 - GitHub Actions workflow at `.github/workflows/docker-image.yml`
+- GitHub Actions workflow at `.github/workflows/frontend-e2e.yml`
 - Pull requests to `master` build the Docker image without pushing
 - Pushes to `master`, version tags (`v*`), and manual runs build and publish images to `ghcr.io/panxiao81/e5renew`
 - Published tags include `latest` on the default branch, ref-based tags, and short SHA tags
+- Frontend E2E workflow runs Playwright smoke tests on PRs, pushes to `master`, and manual runs
 
 ## Code Quality
 - Configured golangci-lint for comprehensive code analysis

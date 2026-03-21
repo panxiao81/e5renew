@@ -2,6 +2,8 @@
 
 `e5renew` is a Go web application that helps keep Microsoft 365 E5 subscriptions active by automating Microsoft Graph API activity. It supports Azure AD login, scheduled renewal jobs, personal mail authorization, OpenTelemetry, and both MySQL and PostgreSQL backends.
 
+Runtime persistence now goes through dependency-injected repositories in `internal/repository`, while `internal/db` primarily handles connection/bootstrap concerns plus sqlc-generated query packages.
+
 ## Highlights
 
 - Azure AD OAuth2 login plus optional personal mail authorization
@@ -25,6 +27,7 @@
 - `make test-coverage` - generate `coverage.out` and `coverage.html`
 - `make test-race` - run race-enabled tests
 - `make bench` - run benchmarks
+- `npm run test:frontend` - run Playwright smoke, mobile, localization, and accessibility tests
 
 The repo currently sits around 87% unit-test coverage.
 
@@ -48,6 +51,12 @@ Some PostgreSQL-focused tests are opt-in and require `E5RENEW_TEST_POSTGRES_DSN`
 
 Migrations are selected automatically from `migrations/mysql` or `migrations/postgres` based on `database.engine`.
 
+## Persistence architecture
+
+- `internal/db/mysql/` and `internal/db/postgres/` contain sqlc-generated query code
+- `internal/repository/` is the app-facing persistence boundary used by services
+- `internal/db/` now mainly provides connection/bootstrap helpers plus DB-internal compatibility/query helpers
+
 ## Docker and GHCR
 
 Build locally:
@@ -57,12 +66,19 @@ docker build -t ghcr.io/panxiao81/e5renew:latest .
 ```
 
 The repository includes a GitHub Actions workflow at `.github/workflows/docker-image.yml`.
+Frontend browser coverage is handled by `.github/workflows/frontend-e2e.yml`.
 
 Workflow behavior:
 
 - pull requests to `master` build the image without pushing
 - pushes to `master` build and publish to `ghcr.io/panxiao81/e5renew`
 - version tags matching `v*` also publish images
+- manual runs are supported with `workflow_dispatch`
+
+Frontend workflow behavior:
+
+- pull requests to `master` run Playwright smoke tests
+- pushes to `master` run Playwright smoke tests
 - manual runs are supported with `workflow_dispatch`
 
 Published image tags include:
@@ -105,3 +121,4 @@ helm install e5renew ./helm/e5renew \
 - SQL code generation is configured through `sqlc.yaml`
 - i18n locale files live in `internal/i18n/locales/`
 - OpenTelemetry config is controlled with `E5RENEW_OTEL_*` variables
+- shared user-aware page rendering is handled through request-context middleware plus template rendering defaults

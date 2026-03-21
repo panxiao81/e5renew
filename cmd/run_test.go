@@ -21,6 +21,7 @@ import (
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/jobs"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/telemetry"
 	"github.com/panxiao81/e5renew/internal/view"
@@ -72,11 +73,10 @@ func TestNewJobScheduler_Success(t *testing.T) {
 	}
 	defer sqlDB.Close()
 
-	queries := db.New(sqlDB)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	apiLogService := services.NewAPILogService(queries, logger)
+	apiLogService := services.NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), logger)
 
-	scheduler, err := newJobScheduler(queries, nil, apiLogService, logger)
+	scheduler, err := newJobScheduler(nil, apiLogService, logger)
 	if err != nil {
 		t.Fatalf("newJobScheduler() error = %v", err)
 	}
@@ -102,16 +102,15 @@ func TestNewJobScheduler_ErrorPaths(t *testing.T) {
 	}
 	defer sqlDB.Close()
 
-	queries := db.New(sqlDB)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	apiLogService := services.NewAPILogService(queries, logger)
+	apiLogService := services.NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), logger)
 
 	t.Run("job scheduler construction failure", func(t *testing.T) {
-		newAppJobScheduler = func(db.APILogStore) (*jobs.JobScheduler, error) {
+		newAppJobScheduler = func() (*jobs.JobScheduler, error) {
 			return nil, errors.New("scheduler init failed")
 		}
 
-		scheduler, err := newJobScheduler(queries, nil, apiLogService, logger)
+		scheduler, err := newJobScheduler(nil, apiLogService, logger)
 		if scheduler != nil {
 			t.Fatal("expected nil scheduler")
 		}
@@ -127,7 +126,7 @@ func TestNewJobScheduler_ErrorPaths(t *testing.T) {
 		}
 		registerLogCleanupJob = originalRegisterCleanup
 
-		scheduler, err := newJobScheduler(queries, nil, apiLogService, logger)
+		scheduler, err := newJobScheduler(nil, apiLogService, logger)
 		if scheduler != nil {
 			_ = scheduler.Shutdown()
 			t.Fatal("expected nil scheduler")
@@ -144,7 +143,7 @@ func TestNewJobScheduler_ErrorPaths(t *testing.T) {
 			return errors.New("log cleanup register failed")
 		}
 
-		scheduler, err := newJobScheduler(queries, nil, apiLogService, logger)
+		scheduler, err := newJobScheduler(nil, apiLogService, logger)
 		if scheduler != nil {
 			_ = scheduler.Shutdown()
 			t.Fatal("expected nil scheduler")
@@ -225,7 +224,6 @@ func installRunTestDefaults(t *testing.T) {
 	originalNewTelemetryProvider := newTelemetryProvider
 	originalNewTelemetryMetrics := newTelemetryMetrics
 	originalOpenAppDB := openAppDB
-	originalNewQueriesWithEngine := newQueriesWithEngine
 	originalNewAppSessionStore := newAppSessionStore
 	originalNewTemplateRenderer := newTemplateRenderer
 	originalInitAppI18n := initAppI18n
@@ -238,7 +236,6 @@ func installRunTestDefaults(t *testing.T) {
 		newTelemetryProvider = originalNewTelemetryProvider
 		newTelemetryMetrics = originalNewTelemetryMetrics
 		openAppDB = originalOpenAppDB
-		newQueriesWithEngine = originalNewQueriesWithEngine
 		newAppSessionStore = originalNewAppSessionStore
 		newTemplateRenderer = originalNewTemplateRenderer
 		initAppI18n = originalInitAppI18n
@@ -266,7 +263,6 @@ func installRunTestDefaults(t *testing.T) {
 		}
 		return dbConn, nil
 	}
-	newQueriesWithEngine = db.NewWithEngine
 	newAppSessionStore = func(engine db.Engine, conn *sql.DB, cleanupInterval time.Duration) (scs.Store, func(), error) {
 		return nil, func() {}, nil
 	}
@@ -346,7 +342,7 @@ func TestRun_StartupErrorPaths(t *testing.T) {
 
 	t.Run("job scheduler initialization failure", func(t *testing.T) {
 		installRunTestDefaults(t)
-		runNewJobScheduler = func(queries *db.Queries, mailService *services.MailService, apiLogService *services.APILogService, logger *slog.Logger) (gocron.Scheduler, error) {
+		runNewJobScheduler = func(mailService *services.MailService, apiLogService *services.APILogService, logger *slog.Logger) (gocron.Scheduler, error) {
 			return nil, errors.New("scheduler boom")
 		}
 

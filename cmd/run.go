@@ -24,6 +24,7 @@ import (
 	"github.com/panxiao81/e5renew/internal/i18n"
 	"github.com/panxiao81/e5renew/internal/jobs"
 	"github.com/panxiao81/e5renew/internal/middleware"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/telemetry"
 	"github.com/panxiao81/e5renew/internal/view"
@@ -34,7 +35,9 @@ var runNewJobScheduler = newJobScheduler
 var newTelemetryProvider = telemetry.NewProvider
 var newTelemetryMetrics = telemetry.NewMetrics
 var openAppDB = db.NewDBWithEngine
-var newQueriesWithEngine = db.NewWithEngine
+var newHealthRepositoryWithEngine = repository.NewHealthRepositoryWithEngine
+var newAPILogRepositoryWithEngine = repository.NewAPILogRepositoryWithEngine
+var newUserTokenRepositoryWithEngine = repository.NewUserTokenRepositoryWithEngine
 var newAppSessionStore = newSessionStoreForEngine
 var newTemplateRenderer = view.New
 var initAppI18n = i18n.Init
@@ -113,7 +116,9 @@ func Run() error {
 		return fmt.Errorf("failed to initialize database connection: %w", err)
 	}
 	defer dbConn.Close()
-	queries := newQueriesWithEngine(engine, dbConn)
+	healthRepo := newHealthRepositoryWithEngine(engine, dbConn)
+	apiLogRepo := newAPILogRepositoryWithEngine(engine, dbConn)
+	userTokenRepo := newUserTokenRepositoryWithEngine(engine, dbConn)
 	metrics.RecordDBConnection(ctx, 1)
 	dbSpan.SetAttributes(
 		attribute.String("database.dsn", viper.GetString("database.dsn")),
@@ -200,12 +205,12 @@ func Run() error {
 		return fmt.Errorf("failed to initialize encryption service: %w", err)
 	}
 
-	userTokenService := services.NewUserTokenService(queries, &userTokenAuth.Config, logger, encryptionService)
-	apiLogService := services.NewAPILogService(queries, logger)
+	userTokenService := services.NewUserTokenService(userTokenRepo, &userTokenAuth.Config, logger, encryptionService)
+	apiLogService := services.NewAPILogService(apiLogRepo, logger)
 	mailService := services.NewMailService(userTokenService, apiLogService, logger)
 	servicesSpan.End()
 
-	app := environment.NewApplication(logger, tmpl, sessionManager, queries)
+	app := environment.NewApplication(logger, tmpl, sessionManager, healthRepo)
 
 	// Register routes
 	homeController := controller.NewHomeController(*app, userTokenService, mailService)
@@ -223,7 +228,7 @@ func Run() error {
 
 	// Job scheduler initialization with tracing
 	ctx, jobSpan := tracer.Start(ctx, "job_scheduler_initialization")
-	s, err := runNewJobScheduler(queries, mailService, apiLogService, logger)
+	s, err := runNewJobScheduler(mailService, apiLogService, logger)
 	if err != nil {
 		logger.Error(err.Error())
 		telemetry.RecordError(ctx, metrics, err, "job_scheduler_initialization")
@@ -309,9 +314,9 @@ func newHttpLogger() *slog.Logger {
 	return logger
 }
 
-func newJobScheduler(queries *db.Queries, mailService *services.MailService, apiLogService *services.APILogService, logger *slog.Logger) (gocron.Scheduler, error) {
+func newJobScheduler(mailService *services.MailService, apiLogService *services.APILogService, logger *slog.Logger) (gocron.Scheduler, error) {
 	// Create JobScheduler wrapper
-	jobScheduler, err := newAppJobScheduler(queries)
+	jobScheduler, err := newAppJobScheduler()
 	if err != nil {
 		return nil, err
 	}

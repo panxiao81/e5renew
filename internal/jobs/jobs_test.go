@@ -12,6 +12,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/db"
+	"github.com/panxiao81/e5renew/internal/repository"
 	"github.com/panxiao81/e5renew/internal/services"
 )
 
@@ -20,11 +21,11 @@ func makeServices(t *testing.T) (*services.APILogService, *services.MailService,
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	apiSvc := services.NewAPILogService(db.New(sqlDB), logger)
+	apiSvc := services.NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), logger)
 	viper.Set("encryption.key", "jobs-test-key")
 	encryption, err := services.NewEncryptionService()
 	require.NoError(t, err)
-	userSvc := services.NewUserTokenService(db.New(sqlDB), &oauth2.Config{}, logger, encryption)
+	userSvc := services.NewUserTokenService(repository.NewUserTokenRepositoryWithEngine(db.EnginePostgres, sqlDB), &oauth2.Config{}, logger, encryption)
 	mailSvc := services.NewMailService(userSvc, apiSvc, logger)
 	cleanup := func() {
 		mock.ExpectClose()
@@ -39,7 +40,7 @@ func TestJobSchedulerAndRegister(t *testing.T) {
 	defer cleanup()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	js, err := NewJobScheduler(db.New(nil))
+	js, err := NewJobScheduler()
 	require.NoError(t, err)
 	defer js.Shutdown()
 

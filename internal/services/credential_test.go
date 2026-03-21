@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/db"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 func TestDatabaseTokenCredential_GetToken(t *testing.T) {
@@ -25,7 +26,7 @@ func TestDatabaseTokenCredential_GetToken(t *testing.T) {
 	viper.Set("encryption.key", "credential-test-key")
 	encryption, err := NewEncryptionService()
 	require.NoError(t, err)
-	svc := NewUserTokenService(db.New(sqlDB), &oauth2.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), encryption)
+	svc := NewUserTokenService(repository.NewUserTokenRepositoryWithEngine(db.EnginePostgres, sqlDB), &oauth2.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), encryption)
 
 	t.Run("success", func(t *testing.T) {
 		encA, _ := encryption.Encrypt("access")

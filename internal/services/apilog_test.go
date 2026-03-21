@@ -14,6 +14,7 @@ import (
 
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/middleware"
+	"github.com/panxiao81/e5renew/internal/repository"
 )
 
 func newTestAPILogService(t *testing.T) (*APILogService, sqlmock.Sqlmock, func()) {
@@ -21,7 +22,7 @@ func newTestAPILogService(t *testing.T) (*APILogService, sqlmock.Sqlmock, func()
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 
-	svc := NewAPILogService(db.New(sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := NewAPILogService(repository.NewAPILogRepositoryWithEngine(db.EnginePostgres, sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	cleanup := func() {
 		mock.ExpectClose()
 		require.NoError(t, sqlDB.Close())
