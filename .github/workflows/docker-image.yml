@@ -15,12 +15,13 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: panxiao81/e5renew
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   docker:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Check out repository
