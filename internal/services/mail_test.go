@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -9,7 +11,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/db"
 )
@@ -72,6 +76,27 @@ func TestMailServiceConvertGraphMessagesToMailResponseValues(t *testing.T) {
 	require.Equal(t, "u@example.com", resp.Value[0].From.EmailAddress.Address)
 }
 
+func makeMailServiceForErrorPath(t *testing.T) (*MailService, sqlmock.Sqlmock, func()) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+
+	viper.Set("encryption.key", "mail-test-key")
+	encryption, err := NewEncryptionService()
+	require.NoError(t, err)
+
+	userTokens := NewUserTokenService(db.New(sqlDB), &oauth2.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), encryption)
+	apiSvc := NewAPILogService(db.New(sqlDB), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := NewMailService(userTokens, apiSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	cleanup := func() {
+		mock.ExpectClose()
+		require.NoError(t, sqlDB.Close())
+		require.NoError(t, mock.ExpectationsWereMet())
+	}
+	return svc, mock, cleanup
+}
+
 func TestMailServiceLogGraphAPICallAsync(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	if err != nil {
@@ -101,4 +126,29 @@ func TestMailServiceLogGraphAPICallAsync(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("async logging did not satisfy expectations: %v", err)
 	}
+}
+
+func TestMailServiceProcessUserMailActivity_Error(t *testing.T) {
+	svc, mock, cleanup := makeMailServiceForErrorPath(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`(?s)select id, user_id, access_token, refresh_token, expiry, token_type\s+from user_tokens\s+where user_id = \$1`).
+		WithArgs("u1").
+		WillReturnError(errors.New("lookup failed"))
+
+	err := svc.ProcessUserMailActivity(context.Background(), "u1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to process mail activity")
+}
+
+func TestMailServiceProcessAllUserMailActivity_GetUsersError(t *testing.T) {
+	svc, mock, cleanup := makeMailServiceForErrorPath(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`(?s)select id, user_id, access_token, refresh_token, expiry, token_type\s+from user_tokens\s+order by user_id`).
+		WillReturnError(sql.ErrNoRows)
+
+	err := svc.ProcessAllUserMailActivity(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to get user IDs")
 }

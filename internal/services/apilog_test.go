@@ -92,3 +92,23 @@ func TestAPILogService_DeleteOldAPILogs_Error(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to delete old API logs")
 }
+
+func TestAPILogService_GetAPILogsByFilters_ErrorPaths(t *testing.T) {
+	svc, mock, cleanup := newTestAPILogService(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`(?is)where user_id =`).WillReturnError(errors.New("user query failed"))
+	_, err := svc.GetAPILogsByUser(context.Background(), "u1", 10, 0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to get API logs by user")
+
+	mock.ExpectQuery(`(?is)where request_time >=`).WillReturnError(errors.New("time query failed"))
+	_, err = svc.GetAPILogsByTimeRange(context.Background(), time.Now().Add(-time.Hour), time.Now(), 10, 0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to get API logs by time range")
+
+	mock.ExpectQuery(`(?is)where job_type =`).WillReturnError(errors.New("job query failed"))
+	_, err = svc.GetAPILogsByJobType(context.Background(), "mail", 10, 0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to get API logs by job type")
+}

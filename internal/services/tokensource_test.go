@@ -141,6 +141,29 @@ func TestDatabaseUpdatingTokenSourceToken(t *testing.T) {
 	})
 }
 
+func TestUserTokenServiceGetTokenSourceWithCallback(t *testing.T) {
+	service, mock, cleanup := newTokenSourceTestService(t)
+	defer cleanup()
+
+	encryptedAccess, err := service.encryption.Encrypt("access")
+	require.NoError(t, err)
+	encryptedRefresh, err := service.encryption.Encrypt("refresh")
+	require.NoError(t, err)
+	expiry := time.Now().Add(time.Hour)
+
+	rows := sqlmock.NewRows([]string{"id", "user_id", "access_token", "refresh_token", "expiry", "token_type"}).
+		AddRow(1, "alice@example.com", encryptedAccess, encryptedRefresh, expiry, "Bearer")
+	mock.ExpectQuery(`(?s)select id, user_id, access_token, refresh_token, expiry, token_type\s+from user_tokens\s+where user_id = \$1`).
+		WithArgs("alice@example.com").
+		WillReturnRows(rows)
+
+	ts, err := service.GetTokenSourceWithCallback(context.Background(), "alice@example.com")
+	require.NoError(t, err)
+	tok, err := ts.Token()
+	require.NoError(t, err)
+	require.Equal(t, "access", tok.AccessToken)
+}
+
 func TestUserTokenServiceGetTokenSourceWithoutCallbackError(t *testing.T) {
 
 	service, mock, cleanup := newTokenSourceTestService(t)

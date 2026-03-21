@@ -196,6 +196,25 @@ func TestUserTokenControllerAuthorizeAndCallbackAndRevoke(t *testing.T) {
 		require.Equal(t, "/login", w.Header().Get("Location"))
 	})
 
+	t.Run("callback exchange failure returns 500", func(t *testing.T) {
+
+		controller, sessions, _, cleanup := setupUserTokenController(t, "http://127.0.0.1:1/token")
+		defer cleanup()
+
+		state := "abcdefghijklmnop1234567890ABCDEFG"
+		code := "abcdefghijklmnopqrstuvwxyzABCDEFG"
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback-user-token?state="+url.QueryEscape(state)+"&code="+url.QueryEscape(code), nil)
+		w := httptest.NewRecorder()
+
+		h := sessions.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seedUserTokenSession(sessions, r, state)
+			controller.UserTokenCallback(w, r)
+		}))
+		h.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("callback save token failure returns 500", func(t *testing.T) {
 
 		controller, sessions, mock, cleanup := setupUserTokenController(t, tokenServer.URL)

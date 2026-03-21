@@ -152,6 +152,24 @@ func TestUserTokenServiceSaveUserTokenErrorBranches(t *testing.T) {
 	})
 }
 
+func TestUserTokenServiceDeleteUserToken(t *testing.T) {
+	t.Run("delete success", func(t *testing.T) {
+		service, mock, cleanup := newTestUserTokenService(t)
+		defer cleanup()
+		mock.ExpectExec(`(?s)delete from user_tokens`).WithArgs("alice@example.com").WillReturnResult(sqlmock.NewResult(0, 1))
+		require.NoError(t, service.DeleteUserToken(context.Background(), "alice@example.com"))
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		service, mock, cleanup := newTestUserTokenService(t)
+		defer cleanup()
+		mock.ExpectExec(`(?s)delete from user_tokens`).WithArgs("alice@example.com").WillReturnError(errors.New("delete failed"))
+		err := service.DeleteUserToken(context.Background(), "alice@example.com")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to delete user token")
+	})
+}
+
 func TestUserTokenServiceGetAndHasUserToken(t *testing.T) {
 
 	t.Run("get decrypts token", func(t *testing.T) {

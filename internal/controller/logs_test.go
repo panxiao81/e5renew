@@ -180,6 +180,23 @@ func TestLogsControllerIndexAndStats(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
+	t.Run("stats redirects when unauthenticated", func(t *testing.T) {
+
+		controller, sessions, _, cleanup := setupLogsController(t)
+		defer cleanup()
+
+		req := httptest.NewRequest(http.MethodGet, "/logs/stats", nil)
+		w := httptest.NewRecorder()
+
+		h := sessions.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			controller.Stats(w, r)
+		}))
+		h.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusTemporaryRedirect, w.Code)
+		require.Equal(t, "/login", w.Header().Get("Location"))
+	})
+
 	t.Run("stats endpoint success and failure branches", func(t *testing.T) {
 
 		controller, sessions, mock, cleanup := setupLogsController(t)

@@ -204,6 +204,53 @@ func TestHomeController_TriggerMailAPIWithoutSessionContext(t *testing.T) {
 	}
 }
 
+func TestHomeController_TriggerMailAPIBranches(t *testing.T) {
+	controller, sm := setupHomeController(t)
+
+	tests := []struct {
+		name   string
+		seed   func(context.Context)
+		status int
+	}{
+		{
+			name: "missing_claims",
+			seed: func(ctx context.Context) { sm.Put(ctx, "user", oidc.IDToken{Subject: "u"}) },
+			status: http.StatusUnauthorized,
+		},
+		{
+			name: "invalid_claims",
+			seed: func(ctx context.Context) {
+				sm.Put(ctx, "user", oidc.IDToken{Subject: "u"})
+				sm.Put(ctx, "claims", "bad")
+			},
+			status: http.StatusUnauthorized,
+		},
+		{
+			name: "service_not_configured",
+			seed: func(ctx context.Context) {
+				sm.Put(ctx, "user", oidc.IDToken{Subject: "u"})
+				sm.Put(ctx, "claims", environment.AzureADClaims{Email: "a@example.com"})
+			},
+			status: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/user/trigger-mail", nil)
+			w := httptest.NewRecorder()
+			h := sm.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				tt.seed(r.Context())
+				controller.TriggerMailAPI(w, r)
+			}))
+			h.ServeHTTP(w, req)
+			if w.Code != tt.status {
+				t.Fatalf("expected %d got %d body=%q", tt.status, w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
 func TestHomeController_About(t *testing.T) {
 	controller, _ := setupHomeController(t)
 
