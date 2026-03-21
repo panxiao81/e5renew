@@ -139,6 +139,7 @@ func Run() error {
 
 	// Add i18n middleware
 	r.Use(middleware.I18nMiddleware)
+	r.Use(middleware.SessionUserMiddleware(sessionManager))
 
 	// Template initialization with tracing
 	ctx, tmplSpan := tracer.Start(ctx, "template_initialization")

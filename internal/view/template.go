@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/panxiao81/e5renew/internal/i18n"
+	"github.com/panxiao81/e5renew/internal/requestctx"
 )
 
 //go:embed *.html
@@ -59,6 +60,7 @@ func (t *Template) Render(w io.Writer, name string, data interface{}) error {
 
 func (t *Template) RenderWithContext(ctx context.Context, w io.Writer, name string, data interface{}) error {
 	localizer := i18n.FromContext(ctx)
+	data = mergeContextData(ctx, data)
 
 	// Create enhanced function map with i18n support
 	funcMap := template.FuncMap{
@@ -103,4 +105,29 @@ func (t *Template) RenderWithContext(ctx context.Context, w io.Writer, name stri
 	}
 
 	return tmpl.ExecuteTemplate(w, name, data)
+}
+
+func mergeContextData(ctx context.Context, data interface{}) interface{} {
+	user, ok := requestctx.UserFromContext(ctx)
+	if !ok {
+		return data
+	}
+
+	if data == nil {
+		return map[string]interface{}{"User": user}
+	}
+
+	if mapped, ok := data.(map[string]interface{}); ok {
+		if _, exists := mapped["User"]; exists {
+			return mapped
+		}
+		cloned := make(map[string]interface{}, len(mapped)+1)
+		for k, v := range mapped {
+			cloned[k] = v
+		}
+		cloned["User"] = user
+		return cloned
+	}
+
+	return data
 }

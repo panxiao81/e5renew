@@ -5,9 +5,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/stretchr/testify/require"
 
 	"github.com/panxiao81/e5renew/internal/i18n"
+	"github.com/panxiao81/e5renew/internal/requestctx"
 )
 
 func TestTemplateRender(t *testing.T) {
@@ -115,5 +117,37 @@ func TestTemplateRender(t *testing.T) {
 		html := out.String()
 		require.Contains(t, html, `<div id="t-default">Fallback text</div>`)
 		require.Contains(t, html, `<div id="dict-valid">value</div>`)
+	})
+
+	t.Run("render with context injects user from context when absent", func(t *testing.T) {
+		require.NoError(t, i18n.Init())
+		ctx := i18n.WithLocalizer(context.Background(), i18n.DefaultBundle.GetLocalizer("en"))
+		ctx = requestctx.WithUser(ctx, &oidc.IDToken{Subject: "context-user"})
+
+		var out bytes.Buffer
+		err := tpl.RenderWithContext(ctx, &out, "index.html", map[string]any{"Title": "Home"})
+		require.NoError(t, err)
+
+		html := out.String()
+		require.Contains(t, html, ">API Logs<")
+		require.Contains(t, html, ">Logout<")
+		require.NotContains(t, html, ">Login<")
+	})
+
+	t.Run("render with context keeps explicit user over context default", func(t *testing.T) {
+		require.NoError(t, i18n.Init())
+		ctx := i18n.WithLocalizer(context.Background(), i18n.DefaultBundle.GetLocalizer("en"))
+		ctx = requestctx.WithUser(ctx, &oidc.IDToken{Subject: "context-user"})
+
+		var out bytes.Buffer
+		err := tpl.RenderWithContext(ctx, &out, "index.html", map[string]any{
+			"Title": "Home",
+			"User":  nil,
+		})
+		require.NoError(t, err)
+
+		html := out.String()
+		require.Contains(t, html, ">Login<")
+		require.NotContains(t, html, ">Logout<")
 	})
 }

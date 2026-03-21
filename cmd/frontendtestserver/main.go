@@ -156,6 +156,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(sessionManager.LoadAndSave)
 	r.Use(appmiddleware.I18nMiddleware)
+	r.Use(appmiddleware.SessionUserMiddleware(sessionManager))
 	r.Handle("/statics/*", view.StaticFileHandler())
 	r.Get("/", home.Index)
 	r.Get("/about", func(w http.ResponseWriter, r *http.Request) {

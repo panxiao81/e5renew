@@ -54,6 +54,9 @@ test('logs page shows seeded stats and filter state for authenticated user', asy
   await page.goto('/logs?job_type=client_credentials&time_range=7d')
 
   await expect(page.getByRole('heading', { name: /API Logs/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'API Logs' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Logout' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Login' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Total Requests' })).toBeVisible()
   await expect(page.locator('strong').filter({ hasText: '3' }).first()).toBeVisible()
   await expect(page.locator('code').filter({ hasText: 'users' }).first()).toBeVisible()
