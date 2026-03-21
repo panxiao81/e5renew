@@ -152,6 +152,15 @@ func TestAzureADIssuerFromConfig(t *testing.T) {
 	}
 }
 
+func TestUserTokenScopes(t *testing.T) {
+	require.Equal(t, []string{
+		oidc.ScopeOpenID,
+		oidc.ScopeOfflineAccess,
+		"https://graph.microsoft.com/Mail.Read",
+		"https://graph.microsoft.com/User.ReadBasic.All",
+	}, userTokenScopes)
+}
+
 func TestVerifyIDTokenMissingIDToken(t *testing.T) {
 	auth := &Authenticator{Config: oauth2.Config{ClientID: "client-id"}}
 	token := &oauth2.Token{AccessToken: "access-token"}

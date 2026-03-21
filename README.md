@@ -4,6 +4,8 @@
 
 Runtime persistence now goes through dependency-injected repositories in `internal/repository`, while `internal/db` primarily handles connection/bootstrap concerns plus sqlc-generated query packages.
 
+The personal mail OAuth flow now also requests the Microsoft Graph permission `User.ReadBasic.All`, so the Azure AD app registration must grant consent for that delegated scope in addition to `Mail.Read` and `offline_access`.
+
 ## Highlights
 
 - Azure AD OAuth2 login plus optional personal mail authorization
@@ -40,6 +42,7 @@ Some PostgreSQL-focused tests are opt-in and require `E5RENEW_TEST_POSTGRES_DSN`
 - Production config template: `config.prod.yaml.template`
 - Default config file path: `$HOME/.e5renew.yaml`
 - Postgres DSN format: `postgres://user:password@host:port/database?sslmode=disable`
+- The Azure AD app registration used for personal mail authorization must include delegated Microsoft Graph permissions for `Mail.Read` and `User.ReadBasic.All`
 
 ## Database and migrations
 

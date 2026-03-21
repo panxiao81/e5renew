@@ -17,6 +17,13 @@ var verifyIDTokenWithProvider = func(a *Authenticator, ctx context.Context, clie
 	return a.Verifier(oidcConfig).Verify(ctx, rawIDToken)
 }
 
+var userTokenScopes = []string{
+	oidc.ScopeOpenID,
+	oidc.ScopeOfflineAccess,
+	"https://graph.microsoft.com/Mail.Read",
+	"https://graph.microsoft.com/User.ReadBasic.All",
+}
+
 type Authenticator struct {
 	*oidc.Provider
 	oauth2.Config
@@ -80,11 +87,7 @@ func NewUserTokenAuthenticator() (*Authenticator, error) {
 		ClientSecret: viper.GetString("azureAD.clientSecret"),
 		RedirectURL:  DeriveUserTokenRedirectURL(viper.GetString("azureAD.redirectURL")), // Different callback URL
 		Endpoint:     provider.Endpoint(),
-		Scopes: []string{
-			oidc.ScopeOpenID,
-			oidc.ScopeOfflineAccess,
-			"https://graph.microsoft.com/Mail.Read",
-		},
+		Scopes:       append([]string(nil), userTokenScopes...),
 	}
 
 	return &Authenticator{

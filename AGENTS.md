@@ -79,6 +79,7 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
    - Uses `github.com/coreos/go-oidc/v3` for OIDC (application login)
    - Client credentials flow for Graph API access
    - Standard OAuth2 authorization code flow for personal mail access
+   - Personal mail auth requires delegated Microsoft Graph permissions for `Mail.Read` and `User.ReadBasic.All`
    - Session lifetime: 1 hour (matches Azure AD ID token)
 
 4. **Database Layer**: SQL-first approach with sqlc
@@ -165,7 +166,7 @@ The application supports personal mail access authorization for enhanced E5 rene
 - **Database**: `user_tokens` table stores encrypted tokens with expiry tracking
 - **Token Refresh**: Automatic refresh with database persistence using `DatabaseUpdatingTokenSource`
 - **API Calls**: Uses Microsoft Graph API `/me/messages` endpoint
-- **Scopes**: `offline_access`, `https://graph.microsoft.com/Mail.Read`
+- **Scopes**: `offline_access`, `https://graph.microsoft.com/Mail.Read`, `https://graph.microsoft.com/User.ReadBasic.All`
 
 #### Routes
 - `/user/authorize-token`: Initiates OAuth2 flow
