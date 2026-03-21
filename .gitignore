@@ -44,6 +44,11 @@ Thumbs.db
 coverage.html
 coverage.out
 
+# Frontend test artifacts
+node_modules/
+playwright-report/
+test-results/
+
 # Temporary files
 *.tmp
 *.temp

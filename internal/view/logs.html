@@ -70,7 +70,7 @@
     <section>
         <h2>{{t "logs.api_call_logs"}}</h2>
         {{if .Logs}}
-        <div style="overflow-x: auto;">
+        <div style="overflow-x: auto;" tabindex="0" aria-label="API call logs table">
             <table>
                 <thead>
                     <tr>
@@ -127,7 +127,7 @@
     {{if .EndpointStats}}
     <section>
         <h2>{{t "logs.endpoint_statistics"}}</h2>
-        <div style="overflow-x: auto;">
+        <div style="overflow-x: auto;" tabindex="0" aria-label="Endpoint statistics table">
             <table>
                 <thead>
                     <tr>
@@ -160,7 +160,7 @@
 
     <!-- Pagination -->
     <section>
-        <nav>
+        <nav aria-label="Logs pagination">
             <ul>
                 {{if gt .CurrentPage 1}}
                     <li><a href="/logs?page={{.PrevPage}}&time_range={{.TimeRange}}&job_type={{.JobType}}&user_id={{.UserID}}" role="button" class="secondary">{{t "logs.previous"}}</a></li>
