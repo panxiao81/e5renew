@@ -1,30 +1,96 @@
 # e5renew
 
-The `e5renew` service is now shipping first-class Postgres support alongside the existing MySQL defaults. The Postgres workflow is documented below so you can run the application, migrations, and session store with a Postgres backend.
+`e5renew` is a Go web application that helps keep Microsoft 365 E5 subscriptions active by automating Microsoft Graph API activity. It supports Azure AD login, scheduled renewal jobs, personal mail authorization, OpenTelemetry, and both MySQL and PostgreSQL backends.
+
+## Highlights
+
+- Azure AD OAuth2 login plus optional personal mail authorization
+- Scheduled Graph API activity for E5 renewal flows
+- MySQL and PostgreSQL support for app data, migrations, and session storage
+- OpenTelemetry tracing and metrics
+- HTML UI with English and Simplified Chinese localization
+- Docker image publishing to `ghcr.io/panxiao81/e5renew`
+
+## Development
+
+### Build and run
+
+- `make dev` - run with `config.dev.yaml`
+- `make build` - build `bin/e5renew`
+- `go run main.go --config config.dev.yaml` - alternate local run command
+
+### Testing
+
+- `make test` - run all tests
+- `make test-coverage` - generate `coverage.out` and `coverage.html`
+- `make test-race` - run race-enabled tests
+- `make bench` - run benchmarks
+
+The repo currently sits around 87% unit-test coverage.
+
+Some PostgreSQL-focused tests are opt-in and require `E5RENEW_TEST_POSTGRES_DSN`.
 
 ## Configuration
 
-- Set `database.engine` to `mysql` (default) or `postgres`. The Go config loader will normalize common variations (`postgresql`, `pg`, etc.).
-- `database.port` can be used to document or override the client-side port (e.g. `15432` when you run Postgres in Docker Compose). The DSN still needs to include the correct port/host.
-- Use the DSN format `postgres://user:password@host:port/database?sslmode=disable` when `database.engine` is `postgres`.
-- The Helm chart now exposes `config.database.engine` and `config.database.port`, and the config map injects them via `E5RENEW_DATABASE_ENGINE` / `E5RENEW_DATABASE_PORT`.
+- Set `database.engine` to `mysql` (default) or `postgres`
+- Use `E5RENEW_`-prefixed environment variables for config overrides
+- Production config template: `config.prod.yaml.template`
+- Default config file path: `$HOME/.e5renew.yaml`
+- Postgres DSN format: `postgres://user:password@host:port/database?sslmode=disable`
 
-## SQLC and Migrations
+## Database and migrations
 
-- `sqlc` now includes a `postgresql` engine block that references `sql/schema-postgres.sql`. Run `sqlc generate` after editing queries and schema to regenerate Postgres-friendly structs.
-- The migration commands automatically read from `migrations/mysql` or `migrations/postgres` depending on `database.engine`. Run `go run ./cmd migrate up` with `DATABASE_ENGINE=postgres` to pop the Postgres migrations.
+- `make migrate-up`
+- `make migrate-down`
+- `make migrate-status`
+- `make migrate-version`
+- `make migrate-force`
 
-## Docker Compose (Postgres)
+Migrations are selected automatically from `migrations/mysql` or `migrations/postgres` based on `database.engine`.
+
+## Docker and GHCR
+
+Build locally:
+
+```bash
+docker build -t ghcr.io/panxiao81/e5renew:latest .
+```
+
+The repository includes a GitHub Actions workflow at `.github/workflows/docker-image.yml`.
+
+Workflow behavior:
+
+- pull requests to `master` build the image without pushing
+- pushes to `master` build and publish to `ghcr.io/panxiao81/e5renew`
+- version tags matching `v*` also publish images
+- manual runs are supported with `workflow_dispatch`
+
+Published image tags include:
+
+- `latest` on the default branch
+- branch or tag refs where applicable
+- short commit SHA tags
+
+## Postgres local workflow
+
+Start Postgres with Docker Compose:
 
 ```bash
 docker compose -f compose.yaml up -d postgres
 ```
 
-The Postgres service listens on `${POSTGRES_PORT:-15432}` so that tests and local tooling do not conflict with a system Postgres instance. Set `E5RENEW_DATABASE_DSN=postgres://e5renew:e5renew@localhost:${POSTGRES_PORT:-15432}/e5renew?sslmode=disable` and `E5RENEW_DATABASE_ENGINE=postgres` before running the server.
+Example local environment:
+
+```bash
+export E5RENEW_DATABASE_ENGINE=postgres
+export E5RENEW_DATABASE_DSN=postgres://e5renew:e5renew@localhost:${POSTGRES_PORT:-15432}/e5renew?sslmode=disable
+```
 
 ## Helm notes
 
-- The chart now depends on the Bitnami `postgresql` sub-chart guarded by `postgres.enabled`. Set the following to bring up an embedded Postgres:
+The Helm chart supports embedded Postgres via the Bitnami `postgresql` sub-chart.
+
+Example:
 
 ```bash
 helm install e5renew ./helm/e5renew \
@@ -34,10 +100,8 @@ helm install e5renew ./helm/e5renew \
   --set config.database.dsn="postgres://e5renew:e5renew@{{ include \"e5renew-postgresql.fullname\" . }}:5432/e5renew?sslmode=disable"
 ```
 
-You can customize the credentials under `postgresql.auth`. The generated Secret still stores `database-dsn`, so you only need to switch the host/port and engine values so the application points at the Postgres service.
+## Notes
 
-## Testing
-
-- The Postgres-focused tests expect a Postgres container from `docker run -p 15432:5432 postgres:15` and honor the `DATABASE_ENGINE=postgres` flag.
-- `golang-migrate` now understands both engines; run the CLI with `DATABASE_ENGINE=postgres go run ./cmd migrate up` to verify the Postgres migrations.
-- Session store integration tests hit the Postgres service on port 15432 and ensure the SCS Postgres store works alongside the MySQL store.
+- SQL code generation is configured through `sqlc.yaml`
+- i18n locale files live in `internal/i18n/locales/`
+- OpenTelemetry config is controlled with `E5RENEW_OTEL_*` variables

@@ -18,6 +18,8 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
 - `make test-coverage` - Run tests with coverage report (generates coverage.html)
 - `make test-race` - Run tests with race condition detection
 - `make bench` - Run benchmarks
+- Current repo-wide unit test coverage is around 87% (`coverage.out`, `coverage.html`)
+- Some Postgres integration tests are opt-in and require `E5RENEW_TEST_POSTGRES_DSN`
 
 ### Code Quality
 - `make fmt` - Format code using go fmt
@@ -79,7 +81,7 @@ E5renew is a Go web application that helps maintain Microsoft Office 365 E5 subs
    - Session lifetime: 1 hour (matches Azure AD ID token)
 
 4. **Database Layer**: SQL-first approach with sqlc
-   - MySQL database with connection pooling
+   - MySQL and PostgreSQL database support with connection pooling
    - Generated queries in `internal/db/`
    - Models and connection management
 
@@ -180,9 +182,16 @@ The application supports personal mail access authorization for enhanced E5 rene
 
 ## Testing
 - Unit tests for controllers, authentication, and database layers
+- Broad coverage for startup, jobs, services, middleware, templates, telemetry, and migration helpers
 - Configuration validation tests
 - Test setup with proper mocking for external dependencies
 - Comprehensive test coverage for core functionality
+
+## CI/CD
+- GitHub Actions workflow at `.github/workflows/docker-image.yml`
+- Pull requests to `master` build the Docker image without pushing
+- Pushes to `master`, version tags (`v*`), and manual runs build and publish images to `ghcr.io/panxiao81/e5renew`
+- Published tags include `latest` on the default branch, ref-based tags, and short SHA tags
 
 ## Code Quality
 - Configured golangci-lint for comprehensive code analysis
@@ -237,7 +246,7 @@ The application supports personal mail access authorization for enhanced E5 rene
 - **Performance**: Efficient caching and context-based localization
 
 ## Notes
-- Uses MySQL for both application data and session storage
+- Uses MySQL or PostgreSQL for application data and session storage
 - Designed for Office 365 E5 subscription renewal automation
 - Supports graceful shutdown with signal handling
 - Production-ready configuration management
