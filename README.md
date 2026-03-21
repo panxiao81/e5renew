@@ -65,15 +65,16 @@ Build locally:
 docker build -t ghcr.io/panxiao81/e5renew:latest .
 ```
 
-The repository includes a GitHub Actions workflow at `.github/workflows/docker-image.yml`.
-Frontend browser coverage is handled by `.github/workflows/frontend-e2e.yml`.
+The repository includes these GitHub Actions workflows:
+
+- `.github/workflows/go-test.yml`
+- `.github/workflows/docker-image.yml`
+- `.github/workflows/frontend-e2e.yml`
 
 Workflow behavior:
 
-- pull requests to `master` build the image without pushing
-- pushes to `master` build and publish to `ghcr.io/panxiao81/e5renew`
-- version tags matching `v*` also publish images
-- manual runs are supported with `workflow_dispatch`
+- Docker images are only built and pushed when a version tag matching `v*` is created
+- published images are pushed to `ghcr.io/panxiao81/e5renew`
 
 Frontend workflow behavior:
 
@@ -81,10 +82,16 @@ Frontend workflow behavior:
 - pushes to `master` run Playwright smoke tests
 - manual runs are supported with `workflow_dispatch`
 
+Go test workflow behavior:
+
+- every push runs `make test`
+- every pull request runs `make test`
+- manual runs are supported with `workflow_dispatch`
+
 Published image tags include:
 
 - `latest` on the default branch
-- branch or tag refs where applicable
+- version tag refs
 - short commit SHA tags
 
 ## Postgres local workflow

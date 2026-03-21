@@ -195,11 +195,12 @@ The application supports personal mail access authorization for enhanced E5 rene
 - Comprehensive test coverage for core functionality
 
 ## CI/CD
+- GitHub Actions workflow at `.github/workflows/go-test.yml`
 - GitHub Actions workflow at `.github/workflows/docker-image.yml`
 - GitHub Actions workflow at `.github/workflows/frontend-e2e.yml`
-- Pull requests to `master` build the Docker image without pushing
-- Pushes to `master`, version tags (`v*`), and manual runs build and publish images to `ghcr.io/panxiao81/e5renew`
-- Published tags include `latest` on the default branch, ref-based tags, and short SHA tags
+- Pushes and pull requests run `make test` via the Go test workflow
+- Version tags (`v*`) build and publish images to `ghcr.io/panxiao81/e5renew`
+- Published Docker tags include `latest`, version-tag refs, and short SHA tags
 - Frontend E2E workflow runs Playwright smoke tests on PRs, pushes to `master`, and manual runs
 
 ## Code Quality
