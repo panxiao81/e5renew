@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/panxiao81/e5renew/internal/controller"
+	"github.com/panxiao81/e5renew/internal/cookiepolicy"
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/i18n"
@@ -127,6 +128,9 @@ func Run() error {
 	dbSpan.End()
 
 	sessionManager := scs.New()
+	sessionManager.Cookie.HttpOnly = true
+	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
+	sessionManager.Cookie.Secure = cookiepolicy.ShouldUseSecureCookieForRedirectURL(viper.GetString("azureAD.redirectURL"))
 	// newSessionStoreForEngine picks mysqlstore/postgresstore based on database.engine
 	store, cleanup, err := newAppSessionStore(engine, dbConn, 30*time.Minute)
 	if err != nil {

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,6 +40,84 @@ func TestI18nMiddleware(t *testing.T) {
 		require.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)
 		require.True(t, cookies[0].HttpOnly)
 		require.Equal(t, 31536000, cookies[0].MaxAge)
+		require.False(t, cookies[0].Secure)
+	})
+
+	t.Run("secure cookie is enabled for https requests", func(t *testing.T) {
+		handler := I18nMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/?lang=zh", nil)
+		req.TLS = &tls.ConnectionState{}
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		res := rr.Result()
+		defer res.Body.Close()
+
+		cookies := res.Cookies()
+		require.Len(t, cookies, 1)
+		require.True(t, cookies[0].Secure)
+	})
+
+	t.Run("secure cookie is enabled behind https proxy", func(t *testing.T) {
+		handler := I18nMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/?lang=zh", nil)
+		req.Header.Set("X-Forwarded-Proto", "https")
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		res := rr.Result()
+		defer res.Body.Close()
+
+		cookies := res.Cookies()
+		require.Len(t, cookies, 1)
+		require.True(t, cookies[0].Secure)
+	})
+
+	t.Run("secure cookie is enabled for multi proxy x-forwarded-proto", func(t *testing.T) {
+		handler := I18nMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/?lang=zh", nil)
+		req.Header.Add("X-Forwarded-Proto", "https,http")
+		req.Header.Add("X-Forwarded-Proto", "http")
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		res := rr.Result()
+		defer res.Body.Close()
+
+		cookies := res.Cookies()
+		require.Len(t, cookies, 1)
+		require.True(t, cookies[0].Secure)
+	})
+
+	t.Run("secure cookie is enabled for forwarded proto across entries", func(t *testing.T) {
+		handler := I18nMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/?lang=zh", nil)
+		req.Header.Set("Forwarded", "for=1.2.3.4;proto=https, for=5.6.7.8;proto=http")
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		res := rr.Result()
+		defer res.Body.Close()
+
+		cookies := res.Cookies()
+		require.Len(t, cookies, 1)
+		require.True(t, cookies[0].Secure)
 	})
 
 	t.Run("header language is used when no query or cookie exists", func(t *testing.T) {
