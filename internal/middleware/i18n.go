@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/panxiao81/e5renew/internal/cookiepolicy"
 	"github.com/panxiao81/e5renew/internal/i18n"
 )
 
@@ -18,7 +19,7 @@ func I18nMiddleware(next http.Handler) http.Handler {
 				Value:    lang,
 				Path:     "/",
 				MaxAge:   int((365 * 24 * time.Hour).Seconds()), // 1 year
-				Secure:   true,
+				Secure:   cookiepolicy.RequestUsesHTTPS(r),
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
 			}
