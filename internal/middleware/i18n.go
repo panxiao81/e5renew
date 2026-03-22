@@ -18,6 +18,7 @@ func I18nMiddleware(next http.Handler) http.Handler {
 				Value:    lang,
 				Path:     "/",
 				MaxAge:   int((365 * 24 * time.Hour).Seconds()), // 1 year
+				Secure:   true,
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
 			}
