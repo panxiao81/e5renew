@@ -75,7 +75,7 @@ require (
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/alexedwards/scs/mysqlstore v0.0.0-20250417082927-ab20b3feb5e9
 	github.com/alexedwards/scs/v2 v2.9.0
-	github.com/coreos/go-oidc/v3 v3.14.1
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-chi/httplog/v3 v3.2.2
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
