@@ -9,10 +9,10 @@ import (
 
 	"github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/panxiao81/e5renew/internal/middleware"
+	"github.com/panxiao81/e5renew/internal/telemetry"
 )
 
 var processUserMailActivity = func(s *MailService, ctx context.Context, userID string) error {
@@ -72,14 +72,8 @@ func NewMailService(userTokenService *UserTokenService, apiLogService *APILogSer
 
 // GetUserMail retrieves mail messages for a specific user using Microsoft Graph SDK
 func (s *MailService) GetUserMail(ctx context.Context, userID string) (*MailResponse, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	ctx, span := tracer.Start(ctx, "GetUserMail")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/services", "GetUserMail", attribute.String("user_id", userID))
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.String("api_endpoint", "graph.microsoft.com/v1.0/me/messages"),
-	)
 
 	// Create custom token credential
 	credential := NewDatabaseTokenCredential(userID, s.userTokenService, s.logger)
@@ -87,15 +81,12 @@ func (s *MailService) GetUserMail(ctx context.Context, userID string) (*MailResp
 	// Create Graph client with custom credential
 	graphServiceClient, err := newMailGraphClient(credential)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.String("error", "failed_to_create_graph_client"))
+		telemetry.RecordSpanError(span, err)
 		return nil, fmt.Errorf("failed to create Graph client: %w", err)
 	}
 
 	// Manual API logging for Graph SDK calls (SDK doesn't support custom HTTP clients)
 	apiStartTime := time.Now()
-
-	span.SetAttributes(attribute.String("graph_operation", "me.messages.get"))
 
 	// Make request to Microsoft Graph API
 	messages, err := getMailMessages(ctx, graphServiceClient)
@@ -106,18 +97,13 @@ func (s *MailService) GetUserMail(ctx context.Context, userID string) (*MailResp
 	logGraphAPICallHook(s, ctx, userID, "me/messages", "GET", apiStartTime, apiEndTime, apiDuration, err == nil, err)
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.String("error", "graph_api_request_failed"))
+		telemetry.RecordSpanError(span, err)
 		return nil, fmt.Errorf("failed to get messages from Graph API: %w", err)
 	}
 
 	// Convert Graph API response to our response format
 	mailResponse := s.convertGraphMessagesToMailResponse(messages)
-
-	span.SetAttributes(
-		attribute.Int("messages_count", len(mailResponse.Value)),
-		attribute.Bool("success", true),
-	)
+	span.SetAttributes(attribute.Int("messages_count", len(mailResponse.Value)))
 
 	s.logger.Debug("Successfully retrieved user mail via Graph SDK",
 		"userID", userID,
@@ -217,22 +203,15 @@ func getBoolValue(ptr *bool) bool {
 
 // ProcessUserMailActivity processes mail activity for a user to maintain E5 activity
 func (s *MailService) ProcessUserMailActivity(ctx context.Context, userID string) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	ctx, span := tracer.Start(ctx, "ProcessUserMailActivity")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/services", "ProcessUserMailActivity", attribute.String("user_id", userID))
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.String("activity_type", "mail_read"),
-	)
 
 	startTime := time.Now()
 
 	// Get user mail to simulate activity
 	mailResponse, err := s.GetUserMail(ctx, userID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("success", false))
+		telemetry.RecordSpanError(span, err)
 		s.logger.Error("Failed to process mail activity",
 			"userID", userID,
 			"error", err)
@@ -240,12 +219,7 @@ func (s *MailService) ProcessUserMailActivity(ctx context.Context, userID string
 	}
 
 	processingDuration := time.Since(startTime)
-
-	span.SetAttributes(
-		attribute.Int("messages_processed", len(mailResponse.Value)),
-		attribute.Int64("processing_duration_ms", processingDuration.Milliseconds()),
-		attribute.Bool("success", true),
-	)
+	span.SetAttributes(attribute.Int64("processing_duration_ms", processingDuration.Milliseconds()))
 
 	s.logger.Info("✅ Successfully processed mail activity for user",
 		"userID", userID,
@@ -259,8 +233,7 @@ func (s *MailService) ProcessUserMailActivity(ctx context.Context, userID string
 
 // ProcessAllUserMailActivity processes mail activity for all users with stored tokens
 func (s *MailService) ProcessAllUserMailActivity(ctx context.Context) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	ctx, span := tracer.Start(ctx, "ProcessAllUserMailActivity")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/services", "ProcessAllUserMailActivity")
 	defer span.End()
 
 	startTime := time.Now()
@@ -273,46 +246,31 @@ func (s *MailService) ProcessAllUserMailActivity(ctx context.Context) error {
 	// Get all user IDs with stored tokens
 	userIDs, err := s.userTokenService.GetAllUserIDs(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("success", false))
+		telemetry.RecordSpanError(span, err)
 		return fmt.Errorf("failed to get user IDs: %w", err)
 	}
-
-	span.SetAttributes(
-		attribute.Int("total_users", len(userIDs)),
-		attribute.String("job_type", "bulk_mail_processing"),
-	)
 
 	successCount := 0
 	errorCount := 0
 
 	// Process each user
 	for _, userID := range userIDs {
-		_, userSpan := tracer.Start(ctx, "ProcessUserMailActivity")
-		userSpan.SetAttributes(attribute.String("user_id", userID))
-
 		if err := processUserMailActivity(s, ctx, userID); err != nil {
 			errorCount++
-			userSpan.RecordError(err)
-			userSpan.SetAttributes(attribute.Bool("success", false))
 			s.logger.Error("Failed to process mail activity for user",
 				"userID", userID,
 				"error", err)
 		} else {
 			successCount++
-			userSpan.SetAttributes(attribute.Bool("success", true))
 		}
-
-		userSpan.End()
 	}
 
 	processingDuration := time.Since(startTime)
-
 	span.SetAttributes(
+		attribute.Int("total_users", len(userIDs)),
 		attribute.Int("success_count", successCount),
 		attribute.Int("error_count", errorCount),
-		attribute.Int64("total_duration_ms", processingDuration.Milliseconds()),
-		attribute.Bool("success", errorCount == 0),
+		attribute.Int64("processing_duration_ms", processingDuration.Milliseconds()),
 	)
 
 	s.logger.Info("🎯 Completed bulk mail activity processing",

@@ -93,8 +93,6 @@ func makeMailServiceForErrorPath(t *testing.T) (*MailService, sqlmock.Sqlmock, f
 	svc := NewMailService(userTokens, apiSvc, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	cleanup := func() {
-		mock.ExpectClose()
-		require.NoError(t, sqlDB.Close())
 		require.NoError(t, mock.ExpectationsWereMet())
 	}
 	return svc, mock, cleanup

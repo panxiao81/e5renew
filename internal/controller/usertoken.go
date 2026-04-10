@@ -10,8 +10,6 @@ import (
 	"github.com/panxiao81/e5renew/internal/environment"
 	"github.com/panxiao81/e5renew/internal/services"
 	"github.com/panxiao81/e5renew/internal/utils"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/oauth2"
 )
 
@@ -35,13 +33,10 @@ func NewUserTokenController(app environment.Application, auth environment.Authen
 
 // AuthorizeUserToken initiates the OAuth2 flow for user token authorization
 func (c *UserTokenController) AuthorizeUserToken(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "authorize_user_token")
-	defer span.End()
+	ctx := r.Context()
 
 	// Check if user is logged in
 	if !c.SessionManager.Exists(ctx, "user") {
-		span.SetAttributes(attribute.Bool("user_logged_in", false))
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -50,15 +45,9 @@ func (c *UserTokenController) AuthorizeUserToken(w http.ResponseWriter, r *http.
 	claims := c.SessionManager.Get(ctx, "claims").(environment.AzureADClaims)
 	userID := claims.Email // Use email as user ID
 
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.Bool("user_logged_in", true),
-	)
-
 	// Generate random state for security
 	state, err := generateUserTokenState()
 	if err != nil {
-		span.RecordError(err)
 		c.errorHandler.HandleError(w, r, err, http.StatusInternalServerError, "Unable to initiate authorization")
 		return
 	}
@@ -69,12 +58,6 @@ func (c *UserTokenController) AuthorizeUserToken(w http.ResponseWriter, r *http.
 	// Create authorization URL
 	authURL := c.auth.AuthCodeURL(state, oauth2.SetAuthURLParam("state", state))
 
-	span.SetAttributes(
-		attribute.String("auth_url", authURL),
-		attribute.String("auth_provider", "azure_ad"),
-		attribute.String("auth_action", "user_token_authorize"),
-	)
-
 	c.Logger.Info("Starting user token authorization", "userID", userID)
 
 	// Redirect to Azure AD for authorization
@@ -83,9 +66,7 @@ func (c *UserTokenController) AuthorizeUserToken(w http.ResponseWriter, r *http.
 
 // UserTokenCallback handles the OAuth2 callback for user token authorization
 func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "user_token_callback")
-	defer span.End()
+	ctx := r.Context()
 
 	// Verify state parameter
 	state := r.URL.Query().Get("state")
@@ -109,7 +90,7 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 	// Validate inputs
 	stateValidation := c.validator.ValidateState(state)
 	codeValidation := c.validator.ValidateAuthCode(code)
-	
+
 	if !stateValidation.Valid || !codeValidation.Valid {
 		c.Logger.Error("User-token callback validation failed",
 			"state_valid", stateValidation.Valid,
@@ -120,26 +101,17 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 			"code_len", len(code),
 			"path", r.URL.Path,
 		)
-		span.SetAttributes(
-			attribute.String("error", "invalid_input"),
-			attribute.Bool("success", false),
-		)
 		c.errorHandler.HandleError(w, r, nil, http.StatusBadRequest, "Invalid request parameters")
 		return
 	}
 
 	if state != sessionState {
-		span.SetAttributes(
-			attribute.String("error", "state_mismatch"),
-			attribute.Bool("success", false),
-		)
 		c.errorHandler.HandleError(w, r, nil, http.StatusBadRequest, "Invalid authorization state")
 		return
 	}
 
 	// Check if user is still logged in
 	if !c.SessionManager.Exists(ctx, "user") {
-		span.SetAttributes(attribute.Bool("user_logged_in", false))
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -148,20 +120,9 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 	claims := c.SessionManager.Get(ctx, "claims").(environment.AzureADClaims)
 	userID := claims.Email // Use email as user ID
 
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.String("auth_provider", "azure_ad"),
-		attribute.String("auth_action", "user_token_callback"),
-	)
-
 	// Exchange code for token (code already validated above)
 	token, err := c.auth.Exchange(ctx, code)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(
-			attribute.String("error", "token_exchange_failed"),
-			attribute.Bool("success", false),
-		)
 		c.errorHandler.HandleError(w, r, err, http.StatusInternalServerError, "Authorization failed")
 		return
 	}
@@ -169,21 +130,9 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 	// Save token to database
 	err = c.userTokenService.SaveUserToken(ctx, userID, token)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(
-			attribute.String("error", "token_save_failed"),
-			attribute.Bool("success", false),
-		)
 		c.errorHandler.HandleError(w, r, err, http.StatusInternalServerError, "Failed to save authorization")
 		return
 	}
-
-	span.SetAttributes(
-		attribute.Bool("success", true),
-		attribute.String("token_type", token.TokenType),
-		attribute.Bool("has_refresh_token", token.RefreshToken != ""),
-		attribute.String("token_expiry", token.Expiry.Format("2006-01-02T15:04:05Z")),
-	)
 
 	c.Logger.Info("Successfully saved user token", "userID", userID)
 
@@ -193,13 +142,10 @@ func (c *UserTokenController) UserTokenCallback(w http.ResponseWriter, r *http.R
 
 // RevokeUserToken revokes and deletes a user's token
 func (c *UserTokenController) RevokeUserToken(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "revoke_user_token")
-	defer span.End()
+	ctx := r.Context()
 
 	// Check if user is logged in
 	if !c.SessionManager.Exists(ctx, "user") {
-		span.SetAttributes(attribute.Bool("user_logged_in", false))
 		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
 		return
 	}
@@ -208,21 +154,12 @@ func (c *UserTokenController) RevokeUserToken(w http.ResponseWriter, r *http.Req
 	claims := c.SessionManager.Get(ctx, "claims").(environment.AzureADClaims)
 	userID := claims.Email // Use email as user ID
 
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.String("auth_action", "revoke_token"),
-	)
-
 	// Delete token from database
 	err := c.userTokenService.DeleteUserToken(ctx, userID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("success", false))
 		c.errorHandler.HandleError(w, r, err, http.StatusInternalServerError, "Failed to revoke authorization")
 		return
 	}
-
-	span.SetAttributes(attribute.Bool("success", true))
 	c.Logger.Info("Successfully revoked user token", "userID", userID)
 
 	// Redirect back to user page

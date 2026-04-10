@@ -15,6 +15,9 @@ import (
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 type fakeTokenCredential struct{}
@@ -134,4 +137,29 @@ func TestGetUsersAndMessagesClientScope(t *testing.T) {
 			return mock.ExpectationsWereMet() == nil
 		}, time.Second, 10*time.Millisecond)
 	})
+}
+
+func TestGetUsersAndMessagesClientScope_CreatesTraceSpan(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	originalCredentialFactory := newClientSecretCredential
+	originalProvider := otel.GetTracerProvider()
+	defer func() {
+		newClientSecretCredential = originalCredentialFactory
+		otel.SetTracerProvider(originalProvider)
+	}()
+
+	rec := tracetest.NewSpanRecorder()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(rec))
+	otel.SetTracerProvider(tp)
+
+	newClientSecretCredential = func(tenantID, clientID, clientSecret string) (azcore.TokenCredential, error) {
+		return nil, errors.New("bad credential config")
+	}
+
+	_, err := GetUsersAndMessagesClientScope(context.Background(), nil, logger)
+	require.Error(t, err)
+
+	spans := rec.Ended()
+	require.NotEmpty(t, spans)
+	require.Equal(t, "GetUsersAndMessagesClientScope", spans[0].Name())
 }

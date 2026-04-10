@@ -11,11 +11,11 @@ import (
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/panxiao81/e5renew/internal/middleware"
 	"github.com/panxiao81/e5renew/internal/services"
+	"github.com/panxiao81/e5renew/internal/telemetry"
 )
 
 var newClientSecretCredential = func(tenantID, clientID, clientSecret string) (azcore.TokenCredential, error) {
@@ -31,8 +31,7 @@ var getGraphUsers = func(ctx context.Context, client *msgraphsdkgo.GraphServiceC
 }
 
 func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services.APILogService, logger *slog.Logger) (map[string]int, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
-	ctx, span := tracer.Start(ctx, "GetUsersAndMessagesClientScope")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/jobs", "GetUsersAndMessagesClientScope")
 	defer span.End()
 
 	start := time.Now()
@@ -42,56 +41,38 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 		"startTime", start.Format(time.RFC3339),
 		"type", "background_job")
 
-	// Create credentials with tracing
-	ctx, credSpan := tracer.Start(ctx, "create_credentials")
 	cred, err := newClientSecretCredential(
 		viper.GetString("azureAD.tenant"),
 		viper.GetString("azureAD.clientID"),
 		viper.GetString("azureAD.clientSecret"),
 	)
 	if err != nil {
-		credSpan.RecordError(err)
-		credSpan.End()
-		span.RecordError(err)
+		telemetry.RecordSpanError(span, err)
 		logger.Error("❌ Failed to create Azure AD credentials",
 			"job", "GetUsersAndMessagesClientScope",
 			"error", err,
 			"step", "credential_creation")
 		return nil, fmt.Errorf("failed to create Azure AD client secret credentials: %w", err)
 	}
-	credSpan.End()
 
 	logger.Debug("✅ Azure AD credentials created successfully",
 		"job", "GetUsersAndMessagesClientScope",
 		"step", "credential_creation")
 
-	// Create Graph client with tracing
-	ctx, clientSpan := tracer.Start(ctx, "create_graph_client")
-
 	// Create Graph client - API logging is handled manually below due to SDK limitations
 	client, err := newGraphServiceClientWithCredentials(cred, []string{"https://graph.microsoft.com/.default"})
 	if err != nil {
-		clientSpan.RecordError(err)
-		clientSpan.End()
-		span.RecordError(err)
+		telemetry.RecordSpanError(span, err)
 		logger.Error("❌ Failed to create Microsoft Graph client",
 			"job", "GetUsersAndMessagesClientScope",
 			"error", err,
 			"step", "graph_client_creation")
 		return nil, fmt.Errorf("failed to create Microsoft Graph client: %w", err)
 	}
-	clientSpan.End()
 
 	logger.Debug("✅ Microsoft Graph client created successfully",
 		"job", "GetUsersAndMessagesClientScope",
 		"step", "graph_client_creation")
-
-	// Get users with tracing
-	ctx, usersSpan := tracer.Start(ctx, "get_users")
-	usersSpan.SetAttributes(
-		attribute.String("graph.api.endpoint", "users"),
-		attribute.String("graph.api.operation", "get"),
-	)
 
 	// Record start time for API logging
 	apiStartTime := time.Now()
@@ -123,13 +104,10 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 	}
 
 	if err != nil {
+		telemetry.RecordSpanError(span, err)
 		apiLogEntry.HTTPStatusCode = 500 // Generic error code
 		errorMsg := err.Error()
 		apiLogEntry.ErrorMessage = &errorMsg
-
-		usersSpan.RecordError(err)
-		usersSpan.End()
-		span.RecordError(err)
 
 		logger.Error("❌ Microsoft Graph API call failed",
 			"job", "GetUsersAndMessagesClientScope",
@@ -151,10 +129,6 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 	}
 
 	userCount := len(user.GetValue())
-	usersSpan.SetAttributes(
-		attribute.Int("graph.api.users.count", userCount),
-	)
-	usersSpan.End()
 
 	logger.Info("✅ Microsoft Graph API call successful",
 		"job", "GetUsersAndMessagesClientScope",
@@ -172,24 +146,15 @@ func GetUsersAndMessagesClientScope(ctx context.Context, apiLogService *services
 		}
 	}()
 
-	// Process users with tracing
-	ctx, processSpan := tracer.Start(ctx, "process_users")
 	count := make(map[string]int)
 	for _, u := range user.GetValue() {
 		count[*u.GetDisplayName()] = len(u.GetMessages())
 	}
-	processSpan.SetAttributes(
-		attribute.Int("processed.users.count", len(count)),
-	)
-	processSpan.End()
-
-	// Set overall span attributes
 	duration := time.Since(start)
 	span.SetAttributes(
 		attribute.Int("users.total", userCount),
 		attribute.Int("messages.total", len(count)),
 		attribute.Int64("duration.ms", duration.Milliseconds()),
-		attribute.Bool("success", true),
 	)
 
 	logger.Info("🎉 E5 renewal job completed successfully",

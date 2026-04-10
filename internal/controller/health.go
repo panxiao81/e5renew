@@ -12,8 +12,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/panxiao81/e5renew/internal/environment"
 )
@@ -61,9 +59,7 @@ func NewHealthController(app environment.Application) *HealthController {
 
 // Health performs comprehensive health checks
 func (h *HealthController) Health(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "health_check")
-	defer span.End()
+	ctx := r.Context()
 
 	startTime := time.Now()
 	h.Logger.Info("Health check started",
@@ -105,13 +101,6 @@ func (h *HealthController) Health(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	span.SetAttributes(
-		attribute.String("health.status", string(overallStatus)),
-		attribute.Int("health.checks.count", len(checks)),
-		attribute.Int64("health.duration.ms", duration.Milliseconds()),
-		attribute.Int("http.status_code", statusCode),
-	)
-
 	if overallStatus != HealthStatusUp {
 		h.Logger.Error("Health check not healthy",
 			"overall_status", overallStatus,
@@ -131,26 +120,20 @@ func (h *HealthController) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(statusCode)
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		span.RecordError(err)
 		h.Logger.Error("Failed to encode health response", "error", err)
 	}
 }
 
 // Ready provides a readiness check (simpler than health)
 func (h *HealthController) Ready(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "readiness_check")
-	defer span.End()
+	ctx := r.Context()
 
 	dbCheck := h.checkDatabase(ctx)
 
 	if dbCheck.Status == HealthStatusUp {
-		span.SetAttributes(attribute.Bool("ready", true))
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ready"))
 	} else {
-		span.SetAttributes(attribute.Bool("ready", false))
-		span.RecordError(fmt.Errorf("database not ready: %s", dbCheck.Message))
 		h.Logger.Error("Readiness check failed", "database_check", dbCheck)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("not ready"))
@@ -159,21 +142,12 @@ func (h *HealthController) Ready(w http.ResponseWriter, r *http.Request) {
 
 // Live provides a liveness check
 func (h *HealthController) Live(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	_, span := tracer.Start(r.Context(), "liveness_check")
-	defer span.End()
-
-	span.SetAttributes(attribute.Bool("alive", true))
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("alive"))
 }
 
 // checkDatabase performs a database health check
 func (h *HealthController) checkDatabase(ctx context.Context) HealthCheck {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(ctx, "health_check_database")
-	defer span.End()
-
 	startTime := time.Now()
 	check := HealthCheck{
 		Name:      "database",
@@ -207,7 +181,6 @@ func (h *HealthController) checkDatabase(ctx context.Context) HealthCheck {
 	if err := h.DB.PingContext(ctx); err != nil {
 		check.Status = HealthStatusDown
 		check.Message = fmt.Sprintf("Database ping failed: %v", err)
-		span.RecordError(err)
 		h.Logger.Error("Health database ping failed",
 			"error", err,
 			"engine", check.Metadata["engine"],
@@ -225,19 +198,10 @@ func (h *HealthController) checkDatabase(ctx context.Context) HealthCheck {
 	check.Duration = time.Since(startTime).String()
 	check.Metadata["connection_type"] = "database/sql_ping"
 
-	span.SetAttributes(
-		attribute.Bool("database.healthy", check.Status == HealthStatusUp),
-		attribute.String("database.connection_type", "database/sql_ping"),
-	)
-
 	return check
 }
 
 func (h *HealthController) checkAzureADIssuer(ctx context.Context) HealthCheck {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(ctx, "health_check_azure_ad_issuer")
-	defer span.End()
-
 	startTime := time.Now()
 	check := HealthCheck{
 		Name:      "azure_ad_issuer",
@@ -293,7 +257,6 @@ func (h *HealthController) checkAzureADIssuer(ctx context.Context) HealthCheck {
 		check.Status = HealthStatusDown
 		check.Message = fmt.Sprintf("Azure AD issuer discovery failed: %v", err)
 		check.Metadata["redirect_mismatch_causes_issuer_fetch_failure"] = "false"
-		span.RecordError(err)
 		h.Logger.Error("Azure AD issuer discovery failed",
 			"tenant", tenant,
 			"issuer_endpoint", issuerEndpoint,
@@ -318,12 +281,6 @@ func (h *HealthController) checkAzureADIssuer(ctx context.Context) HealthCheck {
 	}
 
 	check.Duration = time.Since(startTime).String()
-	span.SetAttributes(
-		attribute.Bool("azuread.healthy", check.Status == HealthStatusUp),
-		attribute.String("azuread.tenant", tenant),
-		attribute.String("azuread.issuer_endpoint", issuerEndpoint),
-	)
-
 	return check
 }
 
@@ -385,10 +342,6 @@ func sanitizeDSN(dsn string) string {
 
 // checkApplication performs application-specific health checks
 func (h *HealthController) checkApplication(ctx context.Context) HealthCheck {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	_, span := tracer.Start(ctx, "health_check_application")
-	defer span.End()
-
 	startTime := time.Now()
 	check := HealthCheck{
 		Name:      "application",
@@ -401,12 +354,6 @@ func (h *HealthController) checkApplication(ctx context.Context) HealthCheck {
 	check.Duration = time.Since(startTime).String()
 	check.Metadata["session_manager"] = "active"
 	check.Metadata["template_engine"] = "active"
-
-	span.SetAttributes(
-		attribute.Bool("application.healthy", true),
-		attribute.String("application.session_manager", "active"),
-		attribute.String("application.template_engine", "active"),
-	)
 
 	return check
 }

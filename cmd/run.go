@@ -79,20 +79,17 @@ func Run() error {
 		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
 	}
 
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew", "application_startup")
+	defer span.End()
+
 	// Initialize metrics
 	meter := otel.Meter("github.com/panxiao81/e5renew")
 	metrics, err := newTelemetryMetrics(meter, logger)
 	if err != nil {
+		telemetry.RecordSpanError(span, err)
 		logger.Error("Failed to initialize metrics: " + err.Error())
 		return fmt.Errorf("failed to initialize metrics: %w", err)
 	}
-
-	// Initialize tracer
-	tracer := otel.Tracer("github.com/panxiao81/e5renew")
-
-	// Create main span for application startup
-	ctx, span := tracer.Start(ctx, "application_startup")
-	defer span.End()
 
 	r := chi.NewRouter()
 
@@ -105,15 +102,12 @@ func Run() error {
 		RecoverPanics: true,
 	}))
 
-	// Initialize database with tracing
-	ctx, dbSpan := tracer.Start(ctx, "database_initialization")
 	engine := db.ParseEngine(viper.GetString("database.engine"))
 	dbConn, err := openAppDB(engine, viper.GetString("database.dsn"))
 	if err != nil {
 		logger.Error("Failed to initialize Database Connection " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "database_connection")
-		dbSpan.RecordError(err)
-		dbSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "database_connection")
 		return fmt.Errorf("failed to initialize database connection: %w", err)
 	}
 	defer dbConn.Close()
@@ -121,12 +115,6 @@ func Run() error {
 	apiLogRepo := newAPILogRepositoryWithEngine(engine, dbConn)
 	userTokenRepo := newUserTokenRepositoryWithEngine(engine, dbConn)
 	metrics.RecordDBConnection(ctx, 1)
-	dbSpan.SetAttributes(
-		attribute.String("database.dsn", viper.GetString("database.dsn")),
-		attribute.String("database.engine", string(engine)),
-	)
-	dbSpan.End()
-
 	sessionManager := scs.New()
 	sessionManager.Cookie.HttpOnly = true
 	sessionManager.Cookie.SameSite = http.SameSiteLaxMode
@@ -135,7 +123,8 @@ func Run() error {
 	store, cleanup, err := newAppSessionStore(engine, dbConn, 30*time.Minute)
 	if err != nil {
 		logger.Error("Failed to initialize session store: " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "session_store")
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "session_store")
 		return fmt.Errorf("failed to initialize session store: %w", err)
 	}
 	if cleanup != nil {
@@ -150,69 +139,47 @@ func Run() error {
 	r.Use(middleware.I18nMiddleware)
 	r.Use(middleware.SessionUserMiddleware(sessionManager))
 
-	// Template initialization with tracing
-	ctx, tmplSpan := tracer.Start(ctx, "template_initialization")
 	tmpl, err := newTemplateRenderer()
 	if err != nil {
 		logger.Error("Failed to initialize templates: %v " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "template_initialization")
-		tmplSpan.RecordError(err)
-		tmplSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "template_initialization")
 		return fmt.Errorf("failed to initialize templates: %w", err)
 	}
-	tmplSpan.End()
 
-	// I18n initialization with tracing
-	ctx, i18nSpan := tracer.Start(ctx, "i18n_initialization")
 	err = initAppI18n()
 	if err != nil {
 		logger.Error("Failed to initialize i18n: " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "i18n_initialization")
-		i18nSpan.RecordError(err)
-		i18nSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "i18n_initialization")
 		return fmt.Errorf("failed to initialize i18n: %w", err)
 	}
-	i18nSpan.End()
 
-	// Authenticator initialization with tracing
-	ctx, authSpan := tracer.Start(ctx, "authenticator_initialization")
 	auth, err := newAppAuthenticator()
 	if err != nil {
 		logger.Error("Failed to initialize Authenticator Provider " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "authenticator_initialization")
-		authSpan.RecordError(err)
-		authSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "authenticator_initialization")
 		return fmt.Errorf("failed to initialize authenticator: %w", err)
 	}
-	authSpan.End()
 
-	// User token authenticator initialization with tracing
-	ctx, userTokenAuthSpan := tracer.Start(ctx, "user_token_authenticator_initialization")
 	userTokenAuth, err := newAppUserTokenAuthenticator()
 	if err != nil {
 		logger.Error("Failed to initialize User Token Authenticator Provider " + err.Error())
-		telemetry.RecordError(ctx, metrics, err, "user_token_authenticator_initialization")
-		userTokenAuthSpan.RecordError(err)
-		userTokenAuthSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "user_token_authenticator_initialization")
 		return fmt.Errorf("failed to initialize user token authenticator: %w", err)
 	}
-	userTokenAuthSpan.End()
 
-	// Services initialization with tracing
-	ctx, servicesSpan := tracer.Start(ctx, "services_initialization")
-
-	// Initialize encryption service
 	encryptionService, err := newAppEncryptionService()
 	if err != nil {
-		servicesSpan.RecordError(err)
-		servicesSpan.End()
+		telemetry.RecordSpanError(span, err)
 		return fmt.Errorf("failed to initialize encryption service: %w", err)
 	}
 
 	userTokenService := services.NewUserTokenService(userTokenRepo, &userTokenAuth.Config, logger, encryptionService)
 	apiLogService := services.NewAPILogService(apiLogRepo, logger)
 	mailService := services.NewMailService(userTokenService, apiLogService, logger)
-	servicesSpan.End()
 
 	app := environment.NewApplication(logger, tmpl, sessionManager, healthRepo)
 
@@ -230,17 +197,13 @@ func Run() error {
 
 	r.Handle("/statics/*", view.StaticFileHandler())
 
-	// Job scheduler initialization with tracing
-	ctx, jobSpan := tracer.Start(ctx, "job_scheduler_initialization")
 	s, err := runNewJobScheduler(mailService, apiLogService, logger)
 	if err != nil {
 		logger.Error(err.Error())
-		telemetry.RecordError(ctx, metrics, err, "job_scheduler_initialization")
-		jobSpan.RecordError(err)
-		jobSpan.End()
+		telemetry.RecordSpanError(span, err)
+		metrics.RecordError(ctx, "job_scheduler_initialization")
 		return fmt.Errorf("failed to initialize job scheduler: %w", err)
 	}
-	jobSpan.End()
 
 	logger.Info("🚀 Starting job scheduler",
 		"totalJobs", "2",
@@ -290,13 +253,13 @@ func Run() error {
 		serverStopCtx()
 	}()
 
-	// Mark application as fully started
 	span.SetAttributes(attribute.String("server.listen", viper.GetString("listen")))
 	span.AddEvent("server_starting")
 
 	logger.Info("Starting server on " + viper.GetString("listen"))
 	err = server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
+		telemetry.RecordSpanError(span, err)
 		logger.Error(err.Error())
 		return fmt.Errorf("server failed to start: %w", err)
 	}

@@ -8,9 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // APILogEntry represents a logged API call
@@ -62,10 +59,6 @@ func NewAPILoggerTransport(transport http.RoundTripper, config APILoggerConfig) 
 
 // RoundTrip implements the http.RoundTripper interface
 func (t *APILoggerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/middleware")
-	_, span := tracer.Start(req.Context(), "APILoggerTransport.RoundTrip")
-	defer span.End()
-
 	// Only log Graph API calls
 	if !strings.Contains(req.URL.Host, "graph.microsoft.com") {
 		return t.Transport.RoundTrip(req)
@@ -82,17 +75,6 @@ func (t *APILoggerTransport) RoundTrip(req *http.Request) (*http.Response, error
 		if req.ContentLength > 0 {
 			requestSize = int(req.ContentLength)
 		}
-	}
-
-	span.SetAttributes(
-		attribute.String("api_endpoint", endpoint),
-		attribute.String("http_method", req.Method),
-		attribute.String("job_type", t.Config.JobType),
-		attribute.Int("request_size", requestSize),
-	)
-
-	if t.Config.UserID != nil {
-		span.SetAttributes(attribute.String("user_id", *t.Config.UserID))
 	}
 
 	// Make the request
@@ -119,12 +101,6 @@ func (t *APILoggerTransport) RoundTrip(req *http.Request) (*http.Response, error
 		errorMsg := err.Error()
 		logEntry.ErrorMessage = &errorMsg
 		logEntry.ResponseSize = 0
-
-		span.RecordError(err)
-		span.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.String("error", errorMsg),
-		)
 	} else {
 		// Handle successful response
 		logEntry.HTTPStatusCode = resp.StatusCode
@@ -145,17 +121,7 @@ func (t *APILoggerTransport) RoundTrip(req *http.Request) (*http.Response, error
 			errorMsg := fmt.Sprintf("HTTP %d %s", resp.StatusCode, resp.Status)
 			logEntry.ErrorMessage = &errorMsg
 		}
-
-		span.SetAttributes(
-			attribute.Int("http_status_code", resp.StatusCode),
-			attribute.Bool("success", logEntry.Success),
-			attribute.Int("response_size", logEntry.ResponseSize),
-		)
 	}
-
-	span.SetAttributes(
-		attribute.Int("duration_ms", logEntry.DurationMs),
-	)
 
 	// Log the API call asynchronously
 	go func() {

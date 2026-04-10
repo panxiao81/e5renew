@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/panxiao81/e5renew/internal/db"
 	"github.com/panxiao81/e5renew/internal/environment"
@@ -29,9 +27,7 @@ func NewLogsController(app environment.Application, apiLogService *services.APIL
 
 // Index displays the main logs page
 func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "logs_index")
-	defer span.End()
+	ctx := r.Context()
 
 	// Check if user is logged in
 	if !c.SessionManager.Exists(ctx, "user") {
@@ -73,15 +69,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	span.SetAttributes(
-		attribute.Int("page", page),
-		attribute.Int("limit", int(limit)),
-		attribute.String("job_type", jobType),
-		attribute.String("user_id", userID),
-		attribute.String("start_time", startTime.Format(time.RFC3339)),
-		attribute.String("end_time", endTime.Format(time.RFC3339)),
-	)
-
 	// Get logs based on filters
 	var logs []db.ApiLog
 	var err error
@@ -96,7 +83,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to get API logs", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -105,7 +91,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 	// Get statistics
 	stats, err := c.apiLogService.GetAPILogStats(ctx, startTime, endTime)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to get API log stats", "error", err)
 		// Continue without stats
 		stats = nil
@@ -114,7 +99,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 	// Get endpoint statistics
 	endpointStats, err := c.apiLogService.GetAPILogStatsByEndpoint(ctx, startTime, endTime)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to get API log endpoint stats", "error", err)
 		// Continue without endpoint stats
 		endpointStats = nil
@@ -139,12 +123,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	span.SetAttributes(
-		attribute.Int("logs_count", len(logs)),
-		attribute.Bool("has_stats", stats != nil),
-		attribute.Bool("has_endpoint_stats", endpointStats != nil),
-	)
-
 	// Render template
 	data := map[string]interface{}{
 		"Title":         "API Logs",
@@ -164,7 +142,6 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 
 	err = c.Template.RenderWithContext(r.Context(), w, "logs.html", data)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to render logs template", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -173,9 +150,7 @@ func (c *LogsController) Index(w http.ResponseWriter, r *http.Request) {
 
 // Stats displays API statistics
 func (c *LogsController) Stats(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "logs_stats")
-	defer span.End()
+	ctx := r.Context()
 
 	// Check if user is logged in
 	if !c.SessionManager.Exists(ctx, "user") {
@@ -205,7 +180,6 @@ func (c *LogsController) Stats(w http.ResponseWriter, r *http.Request) {
 	// Get overall statistics
 	stats, err := c.apiLogService.GetAPILogStats(ctx, startTime, endTime)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to get API log stats", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -214,7 +188,6 @@ func (c *LogsController) Stats(w http.ResponseWriter, r *http.Request) {
 	// Get endpoint statistics
 	endpointStats, err := c.apiLogService.GetAPILogStatsByEndpoint(ctx, startTime, endTime)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to get API log endpoint stats", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -237,13 +210,6 @@ func (c *LogsController) Stats(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	span.SetAttributes(
-		attribute.Int64("total_requests", stats.TotalRequests),
-		attribute.Int64("successful_requests", stats.SuccessfulRequests),
-		attribute.Int64("failed_requests", stats.FailedRequests),
-		attribute.Int("endpoint_count", len(endpointStats)),
-	)
-
 	// Calculate success rate
 	successRate := float64(0)
 	if stats.TotalRequests > 0 {
@@ -262,7 +228,6 @@ func (c *LogsController) Stats(w http.ResponseWriter, r *http.Request) {
 
 	err = c.Template.RenderWithContext(r.Context(), w, "stats.html", data)
 	if err != nil {
-		span.RecordError(err)
 		c.Logger.Error("Failed to render stats template", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
