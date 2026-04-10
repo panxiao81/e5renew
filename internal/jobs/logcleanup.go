@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/panxiao81/e5renew/internal/services"
-	"go.opentelemetry.io/otel"
+	"github.com/panxiao81/e5renew/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -33,20 +33,11 @@ func NewLogCleanupJob(apiLogService *services.APILogService, logger *slog.Logger
 
 // Execute runs the log cleanup job
 func (j *LogCleanupJob) Execute(ctx context.Context) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
-	ctx, span := tracer.Start(ctx, "LogCleanupJob.Execute")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/jobs", "LogCleanupJob.Execute")
 	defer span.End()
 
 	startTime := time.Now()
 	cutoffTime := startTime.Add(-time.Duration(j.retentionDays) * 24 * time.Hour)
-
-	span.SetAttributes(
-		attribute.String("job.name", "log_cleanup"),
-		attribute.String("job.type", "maintenance"),
-		attribute.Int("retention_days", j.retentionDays),
-		attribute.String("cutoff_time", cutoffTime.Format(time.RFC3339)),
-		attribute.String("job.execution_time", startTime.Format(time.RFC3339)),
-	)
 
 	j.logger.Info("🧹 Starting log cleanup job",
 		"job", "LogCleanupJob",
@@ -58,11 +49,7 @@ func (j *LogCleanupJob) Execute(ctx context.Context) error {
 	// Delete old API logs
 	err := j.apiLogService.DeleteOldAPILogs(ctx, cutoffTime)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(
-			attribute.Bool("job.success", false),
-			attribute.String("job.error", err.Error()),
-		)
+		telemetry.RecordSpanError(span, err)
 		j.logger.Error("❌ Log cleanup job failed",
 			"job", "LogCleanupJob",
 			"error", err,
@@ -73,11 +60,7 @@ func (j *LogCleanupJob) Execute(ctx context.Context) error {
 	}
 
 	executionDuration := time.Since(startTime)
-
-	span.SetAttributes(
-		attribute.Bool("job.success", true),
-		attribute.Int64("job.duration_ms", executionDuration.Milliseconds()),
-	)
+	span.SetAttributes(attribute.Int64("job.duration_ms", executionDuration.Milliseconds()))
 
 	j.logger.Info("🎉 Log cleanup job completed successfully",
 		"job", "LogCleanupJob",
@@ -92,18 +75,10 @@ func (j *LogCleanupJob) Execute(ctx context.Context) error {
 
 // RegisterLogCleanupJob registers the log cleanup job with the scheduler
 func (js *JobScheduler) RegisterLogCleanupJob(apiLogService *services.APILogService, logger *slog.Logger, retentionDays int) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
-	_, span := tracer.Start(context.Background(), "RegisterLogCleanupJob")
+	_, span := telemetry.StartSpan(context.Background(), "github.com/panxiao81/e5renew/jobs", "RegisterLogCleanupJob")
 	defer span.End()
 
 	job := NewLogCleanupJob(apiLogService, logger, retentionDays)
-
-	span.SetAttributes(
-		attribute.String("job.name", "log_cleanup"),
-		attribute.String("job.schedule", "daily at 2:00 AM"),
-		attribute.String("job.type", "maintenance"),
-		attribute.Int("retention_days", retentionDays),
-	)
 
 	// Schedule the job to run daily at 2:00 AM
 	_, err := js.NewJob(
@@ -114,13 +89,11 @@ func (js *JobScheduler) RegisterLogCleanupJob(apiLogService *services.APILogServ
 	)
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("job.registration_success", false))
+		telemetry.RecordSpanError(span, err)
 		logger.Error("Failed to register LogCleanupJob", "error", err)
 		return err
 	}
 
-	span.SetAttributes(attribute.Bool("job.registration_success", true))
 	logger.Info("✅ Successfully registered log cleanup job",
 		"job", "LogCleanupJob",
 		"schedule", "daily at 2:00 AM",

@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/panxiao81/e5renew/internal/services"
-	"go.opentelemetry.io/otel"
+	"github.com/panxiao81/e5renew/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -27,17 +27,10 @@ func NewProcessUserMailTokensJob(mailService *services.MailService, logger *slog
 
 // Execute runs the mail token processing job
 func (j *ProcessUserMailTokensJob) Execute(ctx context.Context) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
-	ctx, span := tracer.Start(ctx, "ProcessUserMailTokensJob.Execute")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/jobs", "ProcessUserMailTokensJob.Execute")
 	defer span.End()
 
 	startTime := time.Now()
-
-	span.SetAttributes(
-		attribute.String("job.name", "process_user_mail_tokens"),
-		attribute.String("job.type", "background"),
-		attribute.String("job.execution_time", startTime.Format(time.RFC3339)),
-	)
 
 	j.logger.Info("🔄 Starting user mail tokens processing job",
 		"job", "ProcessUserMailTokensJob",
@@ -48,11 +41,7 @@ func (j *ProcessUserMailTokensJob) Execute(ctx context.Context) error {
 	// Process all user mail activity
 	err := j.mailService.ProcessAllUserMailActivity(ctx)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(
-			attribute.Bool("job.success", false),
-			attribute.String("job.error", err.Error()),
-		)
+		telemetry.RecordSpanError(span, err)
 		j.logger.Error("❌ User mail tokens processing job failed",
 			"job", "ProcessUserMailTokensJob",
 			"error", err,
@@ -63,11 +52,7 @@ func (j *ProcessUserMailTokensJob) Execute(ctx context.Context) error {
 	}
 
 	executionDuration := time.Since(startTime)
-
-	span.SetAttributes(
-		attribute.Bool("job.success", true),
-		attribute.Int64("job.duration_ms", executionDuration.Milliseconds()),
-	)
+	span.SetAttributes(attribute.Int64("job.duration_ms", executionDuration.Milliseconds()))
 
 	j.logger.Info("🎉 User mail tokens processing job completed successfully",
 		"job", "ProcessUserMailTokensJob",
@@ -81,17 +66,10 @@ func (j *ProcessUserMailTokensJob) Execute(ctx context.Context) error {
 
 // RegisterUserMailTokensJob registers the user mail tokens processing job with the scheduler
 func (js *JobScheduler) RegisterUserMailTokensJob(mailService *services.MailService, logger *slog.Logger) error {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/jobs")
-	_, span := tracer.Start(context.Background(), "RegisterUserMailTokensJob")
+	_, span := telemetry.StartSpan(context.Background(), "github.com/panxiao81/e5renew/jobs", "RegisterUserMailTokensJob")
 	defer span.End()
 
 	job := NewProcessUserMailTokensJob(mailService, logger)
-
-	span.SetAttributes(
-		attribute.String("job.name", "process_user_mail_tokens"),
-		attribute.String("job.schedule", "every 30 minutes"),
-		attribute.String("job.type", "recurring"),
-	)
 
 	// Schedule the job to run every 30 minutes
 	_, err := js.NewJob(
@@ -102,13 +80,11 @@ func (js *JobScheduler) RegisterUserMailTokensJob(mailService *services.MailServ
 	)
 
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.Bool("job.registration_success", false))
+		telemetry.RecordSpanError(span, err)
 		logger.Error("Failed to register ProcessUserMailTokensJob", "error", err)
 		return err
 	}
 
-	span.SetAttributes(attribute.Bool("job.registration_success", true))
 	logger.Info("✅ Successfully registered user mail tokens processing job",
 		"job", "ProcessUserMailTokensJob",
 		"schedule", "every 30 minutes",

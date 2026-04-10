@@ -9,8 +9,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/oauth2"
 
 	"github.com/panxiao81/e5renew/internal/environment"
@@ -157,13 +155,10 @@ func (hc *HomeController) User(w http.ResponseWriter, r *http.Request) {
 
 // TriggerMailAPI handles manual trigger of mail API call
 func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/controller")
-	ctx, span := tracer.Start(r.Context(), "TriggerMailAPI")
-	defer span.End()
+	ctx := r.Context()
 
 	// Check if user is authenticated
 	if !hc.safeSessionExists(ctx, "user") {
-		span.SetAttributes(attribute.String("error", "user_not_authenticated"))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -171,26 +166,18 @@ func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request)
 	// Get user claims
 	claimsRaw, ok := hc.safeSessionGet(ctx, "claims")
 	if !ok {
-		span.SetAttributes(attribute.String("error", "missing_claims"))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	claims, ok := asAzureADClaims(claimsRaw)
 	if !ok {
-		span.SetAttributes(attribute.String("error", "invalid_claims"))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userID := claims.Email
 
-	span.SetAttributes(
-		attribute.String("user_id", userID),
-		attribute.String("trigger_type", "manual"),
-	)
-
 	if hc.userTokenService == nil || hc.mailService == nil {
-		span.SetAttributes(attribute.String("error", "service_not_configured"))
 		hc.errorHandler.HandleJSONError(w, r, nil, http.StatusInternalServerError, "Required service is not configured", "service_not_configured")
 		return
 	}
@@ -198,14 +185,11 @@ func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request)
 	// Check if user has a token
 	hasUserToken, err := hasUserTokenForHome(hc.userTokenService, ctx, userID)
 	if err != nil {
-		span.RecordError(err)
-		span.SetAttributes(attribute.String("error", "failed_to_check_user_token"))
 		hc.errorHandler.HandleJSONError(w, r, err, http.StatusInternalServerError, "Unable to check user token", "token_check_failed")
 		return
 	}
 
 	if !hasUserToken {
-		span.SetAttributes(attribute.String("error", "no_user_token"))
 		response := map[string]interface{}{
 			"success": false,
 			"error":   "No personal mail access token found. Please authorize personal mail access first.",
@@ -221,13 +205,7 @@ func (hc *HomeController) TriggerMailAPI(w http.ResponseWriter, r *http.Request)
 	err = processUserMailActivityForHome(hc.mailService, ctx, userID)
 	duration := time.Since(startTime)
 
-	span.SetAttributes(
-		attribute.Int64("processing_duration_ms", duration.Milliseconds()),
-		attribute.Bool("success", err == nil),
-	)
-
 	if err != nil {
-		span.RecordError(err)
 		hc.errorHandler.HandleJSONError(w, r, err, http.StatusInternalServerError, "Failed to process mail activity", "mail_processing_failed")
 		return
 	}

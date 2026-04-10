@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/noop"
 )
 
@@ -55,16 +53,6 @@ func TestResponseWriter_CapturesBytes(t *testing.T) {
 	if rw.bytesWritten != 3 {
 		t.Fatalf("bytesWritten mismatch: %d", rw.bytesWritten)
 	}
-}
-
-func TestSpanHelpers_DontPanic(t *testing.T) {
-	tracer := otel.Tracer("test")
-	ctx, span := StartSpan(context.Background(), tracer, "unit", attribute.String("k", "v"))
-	defer span.End()
-
-	SetSpanAttributes(ctx, attribute.String("a", "b"))
-	AddSpanEvent(ctx, "evt", attribute.Int("n", 1))
-	RecordError(ctx, testMetrics(t), context.DeadlineExceeded, "timeout")
 }
 
 func TestRecordMethods_NoPanic(t *testing.T) {

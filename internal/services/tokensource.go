@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
-	"go.opentelemetry.io/otel"
+	"github.com/panxiao81/e5renew/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/oauth2"
 )
@@ -34,19 +33,13 @@ func NewDatabaseUpdatingTokenSource(tokenSource oauth2.TokenSource, userID strin
 
 // Token returns a token, refreshing if necessary and updating the database
 func (d *DatabaseUpdatingTokenSource) Token() (*oauth2.Token, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	_, span := tracer.Start(context.Background(), "DatabaseUpdatingTokenSource.Token")
+	_, span := telemetry.StartSpan(context.Background(), "github.com/panxiao81/e5renew/services", "DatabaseUpdatingTokenSource.Token", attribute.String("user_id", d.userID))
 	defer span.End()
-
-	span.SetAttributes(
-		attribute.String("user_id", d.userID),
-		attribute.Bool("has_last_token", d.lastToken != nil),
-	)
 
 	// Get token from underlying TokenSource (may trigger refresh)
 	token, err := d.TokenSource.Token()
 	if err != nil {
-		span.RecordError(err)
+		telemetry.RecordSpanError(span, err)
 		return nil, fmt.Errorf("failed to get token from underlying source: %w", err)
 	}
 
@@ -63,26 +56,17 @@ func (d *DatabaseUpdatingTokenSource) Token() (*oauth2.Token, error) {
 		}
 	}
 
-	span.SetAttributes(
-		attribute.Bool("token_refreshed", tokenRefreshed),
-		attribute.String("token_type", token.TokenType),
-		attribute.String("token_expiry", token.Expiry.Format(time.RFC3339)),
-		attribute.Bool("token_expired", token.Expiry.Before(time.Now())),
-	)
-
 	// If token was refreshed, update the database
 	if tokenRefreshed {
 		updateCtx := context.Background()
 		if err := d.service.UpdateUserToken(updateCtx, d.userID, token); err != nil {
+			telemetry.RecordSpanError(span, err)
 			// Log error but don't fail the token request
 			d.logger.Error("Failed to update refreshed token in database",
 				"userID", d.userID,
 				"error", err)
-			span.RecordError(err)
-			span.SetAttributes(attribute.Bool("database_update_failed", true))
 		} else {
 			d.logger.Debug("Updated refreshed token in database", "userID", d.userID)
-			span.SetAttributes(attribute.Bool("database_updated", true))
 		}
 
 		// Update our last known token
@@ -99,16 +83,13 @@ func (d *DatabaseUpdatingTokenSource) Token() (*oauth2.Token, error) {
 
 // GetTokenSourceWithCallback creates a TokenSource that automatically updates the database on refresh
 func (s *UserTokenService) GetTokenSourceWithCallback(ctx context.Context, userID string) (oauth2.TokenSource, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	ctx, span := tracer.Start(ctx, "GetTokenSourceWithCallback")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/services", "GetTokenSourceWithCallback", attribute.String("user_id", userID))
 	defer span.End()
-
-	span.SetAttributes(attribute.String("user_id", userID))
 
 	// Get the stored token from database
 	storedToken, err := s.GetUserToken(ctx, userID)
 	if err != nil {
-		span.RecordError(err)
+		telemetry.RecordSpanError(span, err)
 		return nil, fmt.Errorf("failed to get stored token for user %s: %w", userID, err)
 	}
 
@@ -128,16 +109,13 @@ func (s *UserTokenService) GetTokenSourceWithCallback(ctx context.Context, userI
 // GetTokenSourceWithoutCallback creates a regular TokenSource without database updates
 // This is useful for one-off operations where you don't want to update the database
 func (s *UserTokenService) GetTokenSourceWithoutCallback(ctx context.Context, userID string) (oauth2.TokenSource, error) {
-	tracer := otel.Tracer("github.com/panxiao81/e5renew/services")
-	ctx, span := tracer.Start(ctx, "GetTokenSourceWithoutCallback")
+	ctx, span := telemetry.StartSpan(ctx, "github.com/panxiao81/e5renew/services", "GetTokenSourceWithoutCallback", attribute.String("user_id", userID))
 	defer span.End()
-
-	span.SetAttributes(attribute.String("user_id", userID))
 
 	// Get the stored token from database
 	storedToken, err := s.GetUserToken(ctx, userID)
 	if err != nil {
-		span.RecordError(err)
+		telemetry.RecordSpanError(span, err)
 		return nil, fmt.Errorf("failed to get stored token for user %s: %w", userID, err)
 	}
 

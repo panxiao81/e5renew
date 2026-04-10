@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/XSAM/otelsql"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -59,7 +60,7 @@ func NewDBWithEngine(engine Engine, dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedEngine, engine)
 	}
-	return sql.Open(driver, dsn)
+	return otelsql.Open(driver, dsn)
 }
 
 // NewDB creates a mysql connection to preserve the previous API contract.
