@@ -72,14 +72,14 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.1 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/alexedwards/scs/mysqlstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
-	github.com/go-sql-driver/mysql v1.9.3
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.0 // indirect
