@@ -17,7 +17,7 @@ export default defineConfig({
     command: 'go run ./cmd/frontendtestserver',
     url: `${baseURL}/health/live`,
     reuseExistingServer: false,
-    timeout: 120000,
+    timeout: 300000,
     env: {
       FRONTEND_TEST_PORT: port,
     },
