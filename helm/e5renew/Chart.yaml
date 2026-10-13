@@ -2,7 +2,7 @@ apiVersion: v2
 name: e5renew
 description: A Helm chart for E5renew - Microsoft Office 365 E5 subscription renewal service
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "v0.1.0"
 home: https://github.com/panxiao81/e5renew
 sources:

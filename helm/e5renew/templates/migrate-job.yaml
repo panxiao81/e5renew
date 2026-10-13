@@ -33,16 +33,22 @@ spec:
             - name: E5RENEW_DATABASE_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
-                  key: database-dsn
+                  name: {{ include "e5renew.secretName" . }}
+                  key: {{ .Values.migrations.dsnKey }}
             - name: E5RENEW_DATABASE_PORT
               value: "{{ .Values.config.database.port }}"
           volumeMounts:
             - name: config
               mountPath: /app/config
               readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ include "e5renew.fullname" . }}-config
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
 {{- end }}
