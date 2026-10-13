@@ -59,24 +59,24 @@ spec:
             - name: E5RENEW_DATABASE_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: database-dsn
             - name: E5RENEW_DATABASE_PORT
               value: "{{ .Values.config.database.port }}"
             - name: E5RENEW_AZUREAD_TENANT
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: azuread-tenant
             - name: E5RENEW_AZUREAD_CLIENTID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: azuread-client-id
             - name: E5RENEW_AZUREAD_CLIENTSECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: azuread-client-secret
             - name: E5RENEW_AZUREAD_REDIRECTURL
               valueFrom:
@@ -86,17 +86,17 @@ spec:
             - name: E5RENEW_USERTOKEN_TENANT
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: usertoken-tenant
             - name: E5RENEW_USERTOKEN_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: usertoken-client-id
             - name: E5RENEW_USERTOKEN_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: usertoken-client-secret
             - name: E5RENEW_USERTOKEN_REDIRECT_URI
               valueFrom:
@@ -126,7 +126,7 @@ spec:
             - name: E5RENEW_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "e5renew.fullname" . }}-secret
+                  name: {{ include "e5renew.secretName" . }}
                   key: encryption-key
             - name: E5RENEW_DEBUG
               value: "{{ .Values.config.debug }}"
@@ -134,6 +134,9 @@ spec:
             - name: config
               mountPath: /app/config
               readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             {{- if .Values.persistence.enabled }}
             - name: logs
               mountPath: /app/logs
@@ -144,6 +147,9 @@ spec:
         - name: config
           configMap:
             name: {{ include "e5renew.fullname" . }}-config
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- if .Values.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

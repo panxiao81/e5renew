@@ -38,3 +38,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Secret holding database-dsn, azuread-*, usertoken-* and encryption-key:
+.Values.existingSecret when set (the chart then renders no Secret), else the chart's own.
+*/}}
+{{- define "e5renew.secretName" -}}
+{{- .Values.existingSecret | default (printf "%s-secret" (include "e5renew.fullname" .)) }}
+{{- end }}

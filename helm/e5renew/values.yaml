@@ -74,8 +74,22 @@ affinity: {}
 
 migrations:
   enabled: true
+  # Secret key holding the DSN the migrate Job uses. golang-migrate takes a session-level
+  # advisory lock, which breaks behind a transaction-pooling PgBouncer; point this at a key
+  # with a direct (non-pooled) DSN in that case.
+  dsnKey: database-dsn
   backoffLimit: 3
   ttlSecondsAfterFinished: 300
+
+# Use an existing Secret instead of rendering one from config.*. It must carry the keys of
+# templates/secret.yaml (database-dsn, azuread-tenant, azuread-client-id, azuread-client-secret,
+# usertoken-tenant, usertoken-client-id, usertoken-client-secret, encryption-key), plus
+# migrations.dsnKey if that differs. The config.* secret values are then ignored.
+existingSecret: ""
+
+# Extra volumes/mounts for the app and migrate containers, e.g. a CA bundle for sslrootcert.
+extraVolumes: []
+extraVolumeMounts: []
 
 # Application configuration
 config:
