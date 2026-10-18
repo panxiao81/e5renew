@@ -22,7 +22,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.43.0
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.45.0
+	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.47.0
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
@@ -91,7 +91,6 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/alexedwards/scs/postgresstore => github.com/alexedwards/scs/postgresstore v0.0.0-20250417082927-ab20b3feb5e9
