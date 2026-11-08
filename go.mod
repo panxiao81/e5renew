@@ -9,7 +9,7 @@ require (
 	github.com/XSAM/otelsql v0.42.0
 	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de
 	github.com/go-chi/chi/v5 v5.4.0
-	github.com/go-co-op/gocron/v2 v2.21.1
+	github.com/go-co-op/gocron/v2 v2.23.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/microsoftgraph/msgraph-sdk-go v1.104.0
