@@ -10,7 +10,7 @@ require (
 	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de
 	github.com/go-chi/chi/v5 v5.4.0
 	github.com/go-co-op/gocron/v2 v2.21.1
-	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/golang-migrate/migrate/v4 v4.20.1
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/microsoftgraph/msgraph-sdk-go v1.104.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1
